@@ -1,0 +1,25 @@
+
+#version 450
+
+layout(set = 0, binding = 0) uniform usampler2D tex565;
+
+layout(location = 0) in vec2 fragUV;
+layout(location = 0) out vec4 outColor;
+
+void main() {
+    // Get the texture size
+    ivec2 texSize = textureSize(tex565, 0);
+    // Compute integer pixel coordinates
+    ivec2 coord = ivec2(fragUV * texSize);
+
+    // Fetch the packed 16-bit RGB565 value
+    uint pixel = texelFetch(tex565, coord, 0).r;
+
+    // Unpack RGB565
+    float r = float((pixel >> 11) & 0x1F) / 31.0;
+    float g = float((pixel >> 5) & 0x3F) / 63.0;
+    float b = float(pixel & 0x1F) / 31.0;
+
+    //outColor = vec4(r, g, b, 1.0); // RGBA order
+    outColor = vec4(fragUV, 0.0, 1.0);
+}
