@@ -18,6 +18,9 @@
 #define QUICKQUICKQUICK //RERUN
 #include "SQUICK1.H" //RERUN
 
+#include "GeneratedResources.h" //RERUN
+extern std::unordered_map<UniqueID, const char*> UIDName;
+
 // -----------------------------------------------------------------------------
 // Helpers: style and transparent button
 // -----------------------------------------------------------------------------
@@ -84,6 +87,21 @@ static gboolean transparent_expose_handler(GtkWidget *widget,
 
     cairo_destroy(cr);
     return FALSE;   // let children (labels, combo) draw on top
+}
+
+static void make_widget_transparent(GtkWidget* w)
+{
+    gtk_widget_set_app_paintable(w, TRUE);
+
+    GdkScreen* screen = gtk_widget_get_screen(w);
+    if (gdk_screen_is_composited(screen)) {
+        GdkColormap* rgba = gdk_screen_get_rgba_colormap(screen);
+        if (rgba)
+            gtk_widget_set_colormap(w, rgba);
+    }
+
+    g_signal_connect(G_OBJECT(w), "expose-event",
+                     G_CALLBACK(transparent_expose_handler), NULL);
 }
 
 static GtkWidget* make_transparent_container()
@@ -279,46 +297,64 @@ private:
 };
 
 // -----------------------------------------------------------------------------
-// Dial panes: up to 3 panels, parity with pdial[0..2]
+// DialPanes WITHOUT GtkNotebook (transparent, stack-like)
 // -----------------------------------------------------------------------------
 class DialPanes {
 public:
     DialPanes() {
-        notebook_ = gtk_notebook_new();
-        gtk_notebook_set_tab_pos(GTK_NOTEBOOK(notebook_), GTK_POS_TOP);
-        //gtk_notebook_set_show_tabs(GTK_NOTEBOOK(notebook_), FALSE); // don't show tabs
-        //gtk_notebook_set_show_border(GTK_NOTEBOOK(notebook_), FALSE); // don't show border
+        // A simple vbox that will hold up to 3 panels stacked vertically.
+        // Only one will be shown at a time.
+        container_ = gtk_vbox_new(FALSE, 0);
+        gtk_widget_set_app_paintable(container_, TRUE);
     }
 
     ~DialPanes() {
         clear();
-        // notebook_ owned by outer container
     }
 
-    GtkWidget* notebook() const { return notebook_; }
+    GtkWidget* notebook() const { return container_; }
 
-    void addPage(const char* title, GtkWidget* content) {
+    void addPage(const char* /*title*/, GtkWidget* content) {
         if (count_ >= 3) return;
-        // Append content directly, no frame, no tab label
-        //gtk_notebook_append_page(GTK_NOTEBOOK(notebook_), content, nullptr);
-        gtk_notebook_append_page(GTK_NOTEBOOK(notebook_), content,
-                         gtk_label_new("Select Mission"));
+
+        // Make panel transparent
+        make_widget_transparent(content);
+
+        // Add to container but hide initially
+        gtk_box_pack_start(GTK_BOX(container_), content, TRUE, TRUE, 0);
+        gtk_widget_hide(content);
+
         pages_[count_++] = content;
-        }
+
+        // First added page becomes visible
+        if (count_ == 1)
+            gtk_widget_show(content);
+    }
 
     void clear() {
         for (int i = 0; i < count_; ++i) {
-            gtk_widget_destroy(pages_[i]);
-            pages_[i] = nullptr;
+            if (pages_[i]) {
+                gtk_widget_destroy(pages_[i]);
+                pages_[i] = nullptr;
+            }
         }
         count_ = 0;
     }
 
+    // Optional: switch visible panel (if you ever need it)
+    void showPage(int index) {
+        for (int i = 0; i < count_; ++i) {
+            if (pages_[i])
+                gtk_widget_set_visible(pages_[i], i == index);
+        }
+    }
+
 private:
-    GtkWidget* notebook_{nullptr};
+    GtkWidget* container_{nullptr};
     std::array<GtkWidget*, 3> pages_{nullptr, nullptr, nullptr};
     int count_{0};
 };
+
 
 // -----------------------------------------------------------------------------
 // Screen model: parity with FullScreen textlists + dials
@@ -411,6 +447,11 @@ static bool cb_quickmission_fly(Screen* /*next*/) {
     g_print("[QM] Fly\n");
     return true;
 }
+static bool cb_quickmission_variants(Screen* /*next*/) {
+    g_app.in3d = false;
+    g_print("[QM] Variants\n");
+    return true;
+}
 static bool cb_quickmission_debrief(Screen* /*next*/) {
     g_app.in3d = false;
     g_print("[QM] Debrief\n");
@@ -447,16 +488,11 @@ public:
         gtk_window_set_resizable(GTK_WINDOW(win_), FALSE);
         g_signal_connect(win_, "destroy", G_CALLBACK(+gtk_main_quit), nullptr);
 
-        // Root container: fixed for background + overlay layout
-        //GtkWidget* fixed = gtk_fixed_new();
-        //gtk_container_add(GTK_CONTAINER(win_), fixed);
-
         // Background image
         std::string bg_path = build_full_path("artwork/DIAL1024/title.bmp");
         GdkPixbuf* pixbuf = gdk_pixbuf_new_from_file(bg_path.c_str(), NULL);
         bg_ = gtk_image_new_from_pixbuf(pixbuf);
         gtk_fixed_put(GTK_FIXED(fixed), bg_, 0, 0);
-
 
         // Overlay stack (title + list + dials); spans full window
         vbox_ = gtk_vbox_new(FALSE, 4);
@@ -470,6 +506,7 @@ public:
                                   0,   // bottom padding
                                   0,   // left padding
                                   0); // right padding in pixels
+
         gtk_fixed_put(GTK_FIXED(fixed), align, 0, 0);
         gtk_widget_set_size_request(align, 1024, 768); // match window size
 
@@ -479,6 +516,7 @@ public:
 
         // Dial panes below (optional, stays visible on non-title screens)
         dials_ = new DialPanes();
+
         gtk_box_pack_start(GTK_BOX(vbox_), dials_->notebook(), TRUE, TRUE, 6);
 
         // Hook selection handler
@@ -600,63 +638,471 @@ private:
     std::stack<Screen*> nav_stack_;
 };
 
+
 static GtkWidget* make_quickmission_selector() {
-    GtkWidget* transparent = make_transparent_container();
+    // Vertical box to hold everything (no black overlay)
+    GtkWidget* panel = make_transparent_container();   // draws your semi‑transparent black
+    GtkWidget* vbox  = gtk_vbox_new(FALSE, 8);
 
-    // Vertical box to hold combo + description
-    GtkWidget* vbox = gtk_vbox_new(FALSE, 6);
-    gtk_container_add(GTK_CONTAINER(transparent), vbox);
+    gtk_container_add(GTK_CONTAINER(panel), vbox);
 
-    // Combo box with mission names
-    GtkWidget* combo = gtk_combo_box_new_text();
 
-    // Iterate until sentinel {0}
+    // -------------------------------------------------
+    // 1) Mission label + combo + description
+    // -------------------------------------------------
+
+    // Horizontal box for label + combo
+    GtkWidget* mission_hbox = gtk_hbox_new(FALSE, 12);   // spacing = 12px
+    gtk_box_pack_start(GTK_BOX(vbox), mission_hbox, FALSE, FALSE, 0);
+
+    // Label on the left
+    GtkWidget* mission_label = gtk_label_new("Mission");
+    gtk_misc_set_alignment(GTK_MISC(mission_label), 1.0, 0.5); // right-align text
+    apply_lightblue_label(mission_label);
+    gtk_box_pack_start(GTK_BOX(mission_hbox), mission_label, FALSE, FALSE, 0);
+
+    // Combo box on the right
+    GtkWidget* mission_combo = gtk_combo_box_new_text();
+    gtk_widget_set_size_request(mission_combo, 260, -1); // widen if needed
+    gtk_box_pack_start(GTK_BOX(mission_hbox), mission_combo, FALSE, FALSE, 0);
+
+    // Fill mission combo
     int missionCount = 0;
     for (int i = 0; CSQuick1::quickmissions[i].missionname != 0; ++i) {
         CString cname = LoadResString(CSQuick1::quickmissions[i].missionname);
-        std::string name = cname;
-        gtk_combo_box_append_text(GTK_COMBO_BOX(combo), name.c_str());
+        gtk_combo_box_append_text(GTK_COMBO_BOX(mission_combo), cname);
         missionCount++;
     }
-    gtk_box_pack_start(GTK_BOX(vbox), combo, FALSE, FALSE, 0);
 
-    // Label for mission description
-    GtkWidget* desc = gtk_label_new("");
-    gtk_label_set_line_wrap(GTK_LABEL(desc), TRUE);
-    gtk_label_set_width_chars(GTK_LABEL(desc), 60);
-    apply_lightblue_label(desc);   // style text
-    gtk_box_pack_start(GTK_BOX(vbox), desc, TRUE, TRUE, 0);
+    // Mission description below
+    GtkWidget* mission_desc = gtk_label_new("");
+    gtk_label_set_line_wrap(GTK_LABEL(mission_desc), TRUE);
+    gtk_label_set_width_chars(GTK_LABEL(mission_desc), 60);
+    apply_lightblue_label(mission_desc);
 
-    // Transparent background for vbox
-    GtkRcStyle* rcstyle = gtk_rc_style_new();
-    rcstyle->bg[GTK_STATE_NORMAL] = (GdkColor){0,0,0,0};
-    rcstyle->color_flags[GTK_STATE_NORMAL] = GTK_RC_BG;
-    gtk_widget_modify_style(vbox, rcstyle);
-    g_object_unref(rcstyle);
+    // -------------------------------------------------
+    // 2) Flight Name + Flight Lead (side-by-side)
+    // -------------------------------------------------
+    GtkWidget* flight_row_hbox = gtk_hbox_new(FALSE, 12);
+    gtk_box_pack_start(GTK_BOX(vbox), flight_row_hbox, FALSE, FALSE, 0);
 
-    // Callback: update description when selection changes
-    g_signal_connect(combo, "changed", G_CALLBACK(+[] (GtkComboBox* cb, gpointer user) {
-        GtkWidget* desc = GTK_WIDGET(user);
-        int idx = gtk_combo_box_get_active(cb);
-        if (idx >= 0 && CSQuick1::quickmissions[idx].missionname != 0) {
-            CSQuick1::currquickmiss = idx; // Update current mission index, used by SelectQuickMission()
+    // --- Flight Name ---
+    GtkWidget* flight_name_label = gtk_label_new("   Flight     ");
+    gtk_misc_set_alignment(GTK_MISC(flight_name_label), 1.0, 0.5);
+    apply_lightblue_label(flight_name_label);
+    gtk_box_pack_start(GTK_BOX(flight_row_hbox), flight_name_label, FALSE, FALSE, 0);
+
+    GtkWidget* flight_name_combo = gtk_combo_box_new_text();
+    gtk_widget_set_size_request(flight_name_combo, 180, -1);
+    gtk_box_pack_start(GTK_BOX(flight_row_hbox), flight_name_combo, FALSE, FALSE, 0);
+
+    // Spacer between the two combos (optional)
+    GtkWidget* spacer = gtk_label_new(" ");
+    gtk_box_pack_start(GTK_BOX(flight_row_hbox), spacer, FALSE, FALSE, 0);
+
+    // --- Flight Lead ---
+    GtkWidget* flight_lead_label = gtk_label_new(""); // Lead
+    gtk_misc_set_alignment(GTK_MISC(flight_lead_label), 1.0, 0.5);
+    apply_lightblue_label(flight_lead_label);
+    gtk_box_pack_start(GTK_BOX(flight_row_hbox), flight_lead_label, FALSE, FALSE, 0);
+
+    GtkWidget* flight_lead_combo = gtk_combo_box_new_text();
+    gtk_widget_set_size_request(flight_lead_combo, 180, -1);
+    gtk_box_pack_start(GTK_BOX(flight_row_hbox), flight_lead_combo, FALSE, FALSE, 0);
+
+
+    // -------------------------------------------------
+    // 3) Target Zone label + Target Type combo
+    // -------------------------------------------------
+
+    // Horizontal box for label + combo
+    GtkWidget* target_type_hbox = gtk_hbox_new(FALSE, 12);   // spacing = 12px
+    gtk_box_pack_start(GTK_BOX(vbox), target_type_hbox, FALSE, FALSE, 0);
+
+    // Label on the left
+    GtkWidget* target_type_label = gtk_label_new("     Target Zone");
+    gtk_misc_set_alignment(GTK_MISC(target_type_label), 1.0, 0.5); // right-align text
+    apply_lightblue_label(target_type_label);
+    gtk_box_pack_start(GTK_BOX(target_type_hbox), target_type_label, FALSE, FALSE, 0);
+
+    // Combo box on the right
+    GtkWidget* target_type_combo = gtk_combo_box_new_text();
+    gtk_widget_set_size_request(target_type_combo, 260, -1); // widen if needed
+    gtk_box_pack_start(GTK_BOX(target_type_hbox), target_type_combo, FALSE, FALSE, 0);
+
+
+    // -------------------------------------------------
+    // 4) Target Name label + combo (aligned with Target Zone)
+    // -------------------------------------------------
+    // Horizontal box for label + combo
+    GtkWidget* target_name_hbox = gtk_hbox_new(FALSE, 12);   // same spacing as Target Zone
+    gtk_box_pack_start(GTK_BOX(vbox), target_name_hbox, FALSE, FALSE, 0);
+
+    // Empty label to align with "Target Zone"
+    GtkWidget* target_name_label = gtk_label_new("");
+    gtk_widget_set_size_request(target_name_label, 160, -1);   // adjust width as needed
+    gtk_misc_set_alignment(GTK_MISC(target_name_label), 1.0, 0.5); // right-align text
+    apply_lightblue_label(target_name_label);
+    gtk_box_pack_start(GTK_BOX(target_name_hbox), target_name_label, FALSE, FALSE, 0);
+
+    // Combo box on the right
+    GtkWidget* target_name_combo = gtk_combo_box_new_text();
+    gtk_widget_set_size_request(target_name_combo, 260, -1); // same width as Target Zone
+    gtk_box_pack_start(GTK_BOX(target_name_hbox), target_name_combo, FALSE, FALSE, 0);
+
+    // -------------------------------------------------
+    // Mission description last
+    // -------------------------------------------------
+    // Add some extra vertical spacing
+    GtkWidget* desc_spacer = gtk_label_new("");
+    gtk_widget_set_size_request(desc_spacer, -1, 80); // 80 pixels tall
+    gtk_box_pack_start(GTK_BOX(vbox), desc_spacer, FALSE, FALSE, 0);
+
+    // Now add the mission description label
+    gtk_box_pack_start(GTK_BOX(vbox), mission_desc, FALSE, FALSE, 0);
+
+    // ---------------------------------------
+    // Mission combo "changed" callback
+    // ---------------------------------------
+    g_signal_connect(mission_combo, "changed",
+        G_CALLBACK(+[] (GtkComboBox* cb, gpointer user) {
+            auto** widgets = static_cast<GtkWidget**>(user);
+            GtkWidget* mission_desc = widgets[0];
+            GtkComboBox* target_name_combo = GTK_COMBO_BOX(widgets[1]);
+            GtkComboBox* target_type_combo = GTK_COMBO_BOX(widgets[2]);
+            GtkComboBox* flight_name_combo = GTK_COMBO_BOX(widgets[3]);
+            GtkComboBox* flight_lead_combo = GTK_COMBO_BOX(widgets[4]);
+
+            int idx = gtk_combo_box_get_active(cb);
+            if (idx < 0 || CSQuick1::quickmissions[idx].missionname == 0)
+                return;
+
+            CSQuick1::currquickmiss = idx;
+
+            // Update mission description
             CString ctext = LoadResString(CSQuick1::quickmissions[idx].missiondesc);
             std::string text = ctext;
-            gtk_label_set_text(GTK_LABEL(desc), text.c_str());
-        }
-    }), desc);
+            gtk_label_set_text(GTK_LABEL(mission_desc), text.c_str());
 
-    // Default selection = mission 0
-    if (missionCount > 16) {
-        gtk_combo_box_set_active(GTK_COMBO_BOX(combo), 0);
-        CSQuick1::currquickmiss = 0;
-        CString ctext = LoadResString(CSQuick1::quickmissions[9].missiondesc);
+            // Refill target combo for this mission
+            QuickDef& qd = CSQuick1::quickmissions[idx];
+
+            // Clear target NAME combo
+            int count = gtk_tree_model_iter_n_children(
+                gtk_combo_box_get_model(target_name_combo), nullptr);
+            for (int i = count - 1; i >= 0; --i) {
+                gtk_combo_box_remove_text(target_name_combo, i);
+            }
+
+            // Clear target TYPE combo
+            int tcount = gtk_tree_model_iter_n_children(
+                gtk_combo_box_get_model(target_type_combo), nullptr);
+            for (int i = tcount - 1; i >= 0; --i) {
+                gtk_combo_box_remove_text(target_type_combo, i);
+            }
+
+            // Clear FLIGHT NAME combo
+            int fnCount = gtk_tree_model_iter_n_children(
+                gtk_combo_box_get_model(flight_name_combo), nullptr);
+            for (int i = fnCount - 1; i >= 0; --i) {
+                gtk_combo_box_remove_text(flight_name_combo, i);
+            }
+
+            // Clear FLIGHT LEAD combo
+            int flCount = gtk_tree_model_iter_n_children(
+                gtk_combo_box_get_model(flight_lead_combo), nullptr);
+            for (int i = flCount - 1; i >= 0; --i) {
+                gtk_combo_box_remove_text(flight_lead_combo, i);
+            }
+
+            UniqueID firstTarget = CSQuick1::quickmissions[idx].target;
+            for (int t = 0; t < 4; ++t) {
+                if (qd.targtypeIDs[t] == 0)
+                    continue;
+
+                // TARGET TYPE
+                UniqueID uidtest = qd.targets[t][0];
+                if (uidtest != 0)
+                {
+                    CString typeName = LoadResString(qd.targtypeIDs[t]);
+                    gtk_combo_box_append_text(target_type_combo, typeName);
+                }
+
+                // TARGET NAME
+                bool anyInThisType = false;
+                for (int i = 0; i < 4; ++i) {
+                    UniqueID uid = qd.targets[t][i];
+                    if (uid == 0)
+                        continue;
+                    
+                    // Translate UID to resource string ID
+                    auto it = UIDName.find(uid);
+                    std::string enumName = it->second;
+                    std::string idsName = "IDS_" + enumName;
+                    // Translate resource string ID to integer ID
+                    int idsInt = 0;
+                    auto it2 = g_resIDMap.find(idsName);
+                    if (it2 != g_resIDMap.end()) {
+                        idsInt = it2->second;
+                    }
+                    CString targetName = LoadResString(idsInt);
+
+                    anyInThisType = true;
+                    gtk_combo_box_append_text(target_name_combo, targetName);
+
+
+                    if (!firstTarget)
+                        firstTarget = uid;
+                }
+
+                if (!anyInThisType)
+                    continue;
+            }
+
+            // -------------------------------------------------
+            // Populate FLIGHT NAME
+            // -------------------------------------------------
+            for (int i = 0; i < 4; ++i) {
+                if (qd.line[0][i][0].descID == 0)
+                    continue;
+
+                CString fname = LoadResString(qd.line[0][i][0].descID);
+                gtk_combo_box_append_text(flight_name_combo, fname);
+            }
+
+            // -------------------------------------------------
+            // Populate FLIGHT LEAD (element positions)
+            // -------------------------------------------------
+            for (int g = 0; g < 4; ++g) {
+
+                // Only include groups that actually exist
+                if (qd.line[0][0][g].descID == 0)
+                    continue;
+
+                int ids = 0;
+                switch (g) {
+                    case 0: ids = IDS_L_ELTPOS_0; break; // Lead 1
+                    case 1: ids = IDS_ELTPOS_1; break; // Wing 1
+                    case 2: ids = IDS_ELTPOS_2; break; // Lead 2
+                    case 3: ids = IDS_ELTPOS_3; break; // Wing 2
+                }
+
+                CString posName = LoadResString(ids);
+                gtk_combo_box_append_text(flight_lead_combo, posName);
+            }
+
+            // Default selection
+            int leadCount = gtk_tree_model_iter_n_children(
+                gtk_combo_box_get_model(flight_lead_combo), nullptr);
+
+            if (leadCount > 0) {
+                gtk_combo_box_set_active(flight_lead_combo, 0);
+            }
+
+
+            // Default selections
+            gtk_combo_box_set_active(flight_name_combo, 0);
+            gtk_combo_box_set_active(flight_lead_combo, 0);
+
+            // ---------------------------------------
+            // Set default target TYPE selection
+            // ---------------------------------------
+            int typeCount = gtk_tree_model_iter_n_children(
+                gtk_combo_box_get_model(target_type_combo), nullptr);
+
+            if (typeCount > 0) {
+                gtk_combo_box_set_active(target_type_combo, 0);
+            }
+
+            if (firstTarget) {
+                gtk_combo_box_set_active(target_name_combo, 0);
+                qd.target = firstTarget;
+            } else {
+                // Nothing
+            }
+        }),
+        // pass [mission_desc, target_name_combo, target_type_combo] as user data
+        ([&]() {
+            auto arr = new GtkWidget*[5];
+            arr[0] = mission_desc;
+            arr[1] = target_name_combo;
+            arr[2] = target_type_combo;
+            arr[3] = flight_name_combo; 
+            arr[4] = flight_lead_combo;
+            return arr;
+        })()
+    );
+
+    // ---------------------------------------
+    // Target Type combo "changed" callback
+    // ---------------------------------------
+    g_signal_connect(target_type_combo, "changed",
+        G_CALLBACK(+[] (GtkComboBox* cb, gpointer user) {
+
+            // user = target_name_combo
+            GtkComboBox* target_name_combo = GTK_COMBO_BOX(user);
+
+            int sel = gtk_combo_box_get_active(cb);
+            if (sel < 0)
+                return;
+
+            QuickDef& qd = CSQuick1::quickmissions[CSQuick1::currquickmiss];
+
+            // Determine which target type index corresponds to this selection
+            int flatIndex = 0;
+            int chosenTypeIndex = -1;
+
+            for (int t = 0; t < 4; ++t) {
+                if (qd.targtypeIDs[t] == 0)
+                    continue;
+
+                if (flatIndex == sel) {
+                    chosenTypeIndex = t;
+                    break;
+                }
+                ++flatIndex;
+            }
+
+            if (chosenTypeIndex < 0)
+                return;
+
+            // Clear target NAME combo
+            int count = gtk_tree_model_iter_n_children(
+                gtk_combo_box_get_model(target_name_combo), nullptr);
+            for (int i = count - 1; i >= 0; --i) {
+                gtk_combo_box_remove_text(target_name_combo, i);
+            }
+
+            // Refill only the names belonging to this type
+            UniqueID firstTarget = (UniqueID)0;
+
+            for (int i = 0; i < 4; ++i) {
+                UniqueID uid = qd.targets[chosenTypeIndex][i];
+                if (uid == 0)
+                    continue;
+
+                // UID → enum name → IDS_ → resource string
+                auto it = UIDName.find(uid);
+                if (it == UIDName.end())
+                    continue;
+
+                std::string enumName = it->second;
+                std::string idsName = "IDS_" + enumName;
+
+                int idsInt = 0;
+                auto it2 = g_resIDMap.find(idsName);
+                if (it2 != g_resIDMap.end())
+                    idsInt = it2->second;
+
+                CString targetName = LoadResString(idsInt);
+                gtk_combo_box_append_text(target_name_combo, targetName);
+
+                if (!firstTarget)
+                    firstTarget = uid;
+            }
+
+            // Select first target name
+            if (firstTarget) {
+                gtk_combo_box_set_active(target_name_combo, 0);
+                qd.target = firstTarget;
+            }
+
+        }),
+        target_name_combo   // <-- IMPORTANT: pass target_name_combo as user data
+    );
+
+
+    // ---------------------------------------
+    // Target Name combo "changed" callback
+    // ---------------------------------------
+    g_signal_connect(target_name_combo, "changed",
+        G_CALLBACK(+[] (GtkComboBox* cb, gpointer user) {
+            GtkWidget* label = GTK_WIDGET(user);
+            int sel = gtk_combo_box_get_active(cb);
+
+            if (sel < 0)
+                return;
+
+            QuickDef& qd = CSQuick1::quickmissions[CSQuick1::currquickmiss];
+
+            // Walk through target names in same order we used when filling the combo
+            int flatIndex = 0;
+            UniqueID chosen = (UniqueID)0;
+            int chosenTypeIndex = -1;
+
+            for (int t = 0; t < 4 && !chosen; ++t) {
+                if (qd.targtypeIDs[t] == 0)
+                    continue;
+
+                for (int i = 0; i < 4; ++i) {
+                    UniqueID uid = qd.targets[t][i];
+                    if (uid == 0)
+                        continue;
+
+                    if (flatIndex == sel) {
+                        chosen = uid;
+                        chosenTypeIndex = t;
+                        break;
+                    }
+                    ++flatIndex;
+                }
+            }
+
+            if (chosen) {
+                qd.target = chosen;
+                if (chosenTypeIndex >= 0) {
+                    CString tname = LoadResString(qd.targtypeIDs[chosenTypeIndex]);
+                    gtk_label_set_text(GTK_LABEL(label), tname);
+                }
+            }
+        }),
+        NULL 
+    );
+
+    // ---------------------------------------
+    // Default mission selection
+    // ---------------------------------------
+    if (missionCount > 0) {
+        int defaultIndex = 0; // or your existing logic (e.g. 9, 16, etc.)
+        gtk_combo_box_set_active(GTK_COMBO_BOX(mission_combo), defaultIndex);
+        CSQuick1::currquickmiss = defaultIndex;
+
+        CString ctext = LoadResString(CSQuick1::quickmissions[defaultIndex].missiondesc);
         std::string text = ctext;
-        gtk_label_set_text(GTK_LABEL(desc), text.c_str());
+        gtk_label_set_text(GTK_LABEL(mission_desc), text.c_str());
+
+        // Also fill target combo for this mission
+        QuickDef& qd = CSQuick1::quickmissions[defaultIndex];
+
+        UniqueID firstTarget = qd.target;
+        for (int t = 0; t < 4; ++t) {
+            if (qd.targtypeIDs[t] == 0)
+                continue;
+
+            CString typeName = LoadResString(qd.targtypeIDs[t]);
+            bool anyInThisType = false;
+            for (int i = 0; i < 4; ++i) {
+                UniqueID uid = qd.targets[t][i];
+                if (uid == 0)
+                    continue;
+                anyInThisType = true;
+                gtk_combo_box_append_text(GTK_COMBO_BOX(target_name_combo), typeName);
+                if (!firstTarget)
+                    firstTarget = uid;
+            }
+            if (!anyInThisType)
+                continue;
+        }
+
+        if (firstTarget) {
+            gtk_combo_box_set_active(GTK_COMBO_BOX(target_name_combo), 0);
+            qd.target = firstTarget;
+        }
     }
 
-    return transparent;
+    return panel;
 }
+
 
 // -----------------------------------------------------------------------------
 // Screens definition
@@ -677,8 +1123,8 @@ int UIMain(int argc, char** argv) {
     std::string quick_bg = build_full_path("artwork/DIAL1024/quickmis.bmp");
     quick.setBackground(quick_bg.c_str());
     quick.addEntry("Back",    nullptr, {});
+    quick.addEntry("Variants", nullptr, cb_quickmission_variants);
     quick.addEntry("Fly",     nullptr, cb_quickmission_fly);
-    quick.addEntry("Debrief", nullptr, cb_quickmission_debrief);
     quick.setDialFactory(0, [](){ return make_quickmission_selector(); });
 
     Screen camp(IDS_SINGLEPLAYER3, true);

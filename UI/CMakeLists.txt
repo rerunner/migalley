@@ -4,6 +4,7 @@ project(UI LANGUAGES CXX)
 # Build as a static library
 add_library(UI STATIC
     MiniUI.cpp
+    uid_reverse.cpp
     MiniUI.h   # optional, for IDE visibility
 )
 
