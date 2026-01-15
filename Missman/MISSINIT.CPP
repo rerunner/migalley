@@ -3343,12 +3343,6 @@ void	Campaign::CampaignInit()
 	if (Miss_Man.currcampaignnum != MissMan::SCRAMBLECAMPAIGN)
 		SupplyTree::NodeReview ();
 
-	// RERUN HACK START
-	printf("RERUN HACK defaulting player squadron to selected scenario\n");
-	playersquadron = (SWord)CSQuick1::quickmissions[CSQuick1::currquickmiss].line[0][0][0].actype;
-	// Reason, when Mission Manager loads a quick mission, it is set to SCRAMBLECAMPAIGN
-	// but the player squadron should be what was selected in the quick mission screen.
-	// RERUN HACK END
 
 	playeracnum = 0;
 	switch (Miss_Man.currcampaignnum)
@@ -3376,6 +3370,15 @@ void	Campaign::CampaignInit()
 		case MissMan::SO51_CAMPAIGN:
 		{
 			playersquadron = SQ_F86A;
+			break;
+		}
+		case MissMan::SCRAMBLECAMPAIGN:
+		{
+			// RERUN HACK START
+			playersquadron = (SWord)CSQuick1::quickmissions[CSQuick1::currquickmiss].plac;
+			// Reason, when Mission Manager loads a quick mission, it is set to SCRAMBLECAMPAIGN
+			// but the player squadron should be what was selected in the quick mission screen.
+			// RERUN HACK END
 			break;
 		}
 	}

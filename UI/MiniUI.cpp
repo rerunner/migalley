@@ -639,6 +639,71 @@ private:
 };
 
 
+static void rebuild_flight_names(GtkComboBox* flight_name_combo)
+{
+    QuickDef& qd = CSQuick1::quickmissions[CSQuick1::currquickmiss];
+    int side = qd.plside;   // 0 = UN, 1 = Red
+
+    // Clear existing entries
+    int count = gtk_tree_model_iter_n_children(
+        gtk_combo_box_get_model(flight_name_combo), nullptr);
+    for (int i = count - 1; i >= 0; --i)
+        gtk_combo_box_remove_text(flight_name_combo, i);
+
+    // Rebuild list
+    int index = 0;
+    for (int w = 0; w < 8; ++w) {
+        for (int g = 0; g < 3; ++g) {
+            QuickFields& qf = qd.line[side][w][g];
+            if (qf.flights || qf.DutyFlags()) {
+                CString cname = (side == 0 ? "UN " : "Red ") + LoadResString(qf.descID) + " Flight " + std::to_string(index + 1);
+                gtk_combo_box_append_text(flight_name_combo, cname);
+                index++;
+            }
+        }
+    }
+
+    // Auto-select first entry if available
+    if (index > 0) {
+        gtk_combo_box_set_active(flight_name_combo, 0);
+
+        // Update player aircraft to match first entry
+        for (int w = 0; w < 8; ++w) {
+            for (int g = 0; g < 3; ++g) {
+                QuickFields& qf = qd.line[side][w][g];
+                if (qf.flights || qf.DutyFlags()) {
+                    qd.plac = qf.actype;
+                    return;
+                }
+            }
+        }
+    }
+}
+
+static void on_rb_un_toggled(GtkToggleButton* btn, gpointer user)
+{
+    if (gtk_toggle_button_get_active(btn)) {
+        QuickDef& qd = CSQuick1::quickmissions[CSQuick1::currquickmiss];
+        qd.plside = 0;
+
+        GtkComboBox* flight_name_combo = GTK_COMBO_BOX(user);
+        rebuild_flight_names(flight_name_combo);
+    }
+}
+
+static void on_rb_red_toggled(GtkToggleButton* btn, gpointer user)
+{
+    if (gtk_toggle_button_get_active(btn)) {
+        QuickDef& qd = CSQuick1::quickmissions[CSQuick1::currquickmiss];
+        qd.plside = 1;
+
+        GtkComboBox* flight_name_combo = GTK_COMBO_BOX(user);
+        rebuild_flight_names(flight_name_combo);
+    }
+}
+
+
+
 static GtkWidget* make_quickmission_selector() {
     // Vertical box to hold everything (no black overlay)
     GtkWidget* panel = make_transparent_container();   // draws your semi‑transparent black
@@ -710,7 +775,6 @@ static GtkWidget* make_quickmission_selector() {
     gtk_widget_set_size_request(flight_lead_combo, 180, -1);
     gtk_box_pack_start(GTK_BOX(flight_row_hbox), flight_lead_combo, FALSE, FALSE, 0);
 
-
     // -------------------------------------------------
     // 3) Target Zone label + Target Type combo
     // -------------------------------------------------
@@ -730,7 +794,6 @@ static GtkWidget* make_quickmission_selector() {
     gtk_widget_set_size_request(target_type_combo, 260, -1); // widen if needed
     gtk_box_pack_start(GTK_BOX(target_type_hbox), target_type_combo, FALSE, FALSE, 0);
 
-
     // -------------------------------------------------
     // 4) Target Name label + combo (aligned with Target Zone)
     // -------------------------------------------------
@@ -749,6 +812,30 @@ static GtkWidget* make_quickmission_selector() {
     GtkWidget* target_name_combo = gtk_combo_box_new_text();
     gtk_widget_set_size_request(target_name_combo, 260, -1); // same width as Target Zone
     gtk_box_pack_start(GTK_BOX(target_name_hbox), target_name_combo, FALSE, FALSE, 0);
+
+
+    // -------------------------------------------------
+    // 5) Side selection radio buttons (UN / Red)
+    // -------------------------------------------------
+
+    // Horizontal box for the radio buttons
+    GtkWidget* side_hbox = gtk_hbox_new(FALSE, 12);
+    gtk_box_pack_start(GTK_BOX(vbox), side_hbox, FALSE, FALSE, 0);
+
+    // Create the first radio button ("UN")
+    GtkWidget* rb_un = gtk_radio_button_new_with_label(NULL, "UN");
+    apply_lightblue_label(gtk_bin_get_child(GTK_BIN(rb_un)));
+    gtk_box_pack_start(GTK_BOX(side_hbox), rb_un, FALSE, FALSE, 0);
+
+    // Create the second radio button ("Red"), in the same group
+    GtkWidget* rb_red = gtk_radio_button_new_with_label_from_widget(
+        GTK_RADIO_BUTTON(rb_un), "Red");
+    apply_lightblue_label(gtk_bin_get_child(GTK_BIN(rb_red)));
+    gtk_box_pack_start(GTK_BOX(side_hbox), rb_red, FALSE, FALSE, 0);
+
+    // Default selection: UN
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(rb_un), TRUE);
+
 
     // -------------------------------------------------
     // Mission description last
@@ -815,7 +902,11 @@ static GtkWidget* make_quickmission_selector() {
                 gtk_combo_box_remove_text(flight_lead_combo, i);
             }
 
-            UniqueID firstTarget = CSQuick1::quickmissions[idx].target;
+            // Fill default player ac to first entry of new mission.
+            // This will be updated again when flight is selected.
+            qd.plac = qd.line[0][0][0].actype;
+
+            UniqueID firstTarget = qd.target;
             for (int t = 0; t < 4; ++t) {
                 if (qd.targtypeIDs[t] == 0)
                     continue;
@@ -860,35 +951,92 @@ static GtkWidget* make_quickmission_selector() {
             }
 
             // -------------------------------------------------
-            // Populate FLIGHT NAME
+            // Populate FLIGHT NAME and FLIGHT LEAD combos
             // -------------------------------------------------
-            for (int i = 0; i < 4; ++i) {
-                if (qd.line[0][i][0].descID == 0)
-                    continue;
-
-                CString fname = LoadResString(qd.line[0][i][0].descID);
-                gtk_combo_box_append_text(flight_name_combo, fname);
-            }
-
-            // -------------------------------------------------
-            // Populate FLIGHT LEAD (element positions)
-            // -------------------------------------------------
-            for (int g = 0; g < 4; ++g) {
-
-                // Only include groups that actually exist
-                if (qd.line[0][0][g].descID == 0)
-                    continue;
-
-                int ids = 0;
-                switch (g) {
-                    case 0: ids = IDS_L_ELTPOS_0; break; // Lead 1
-                    case 1: ids = IDS_ELTPOS_1; break; // Wing 1
-                    case 2: ids = IDS_ELTPOS_2; break; // Lead 2
-                    case 3: ids = IDS_ELTPOS_3; break; // Wing 2
+            if (qd.plside == 0)
+            {
+                printf("Player side: BLUE\n");
+                // BLUE
+                int	ilun[8][2]={{0}};
+                int initind=0;
+                for (int wave=0;wave<8;wave++)
+                {
+                    for (int grp=0;grp<3;grp++)
+                    { 
+                        if (qd.line[0][wave][grp].flights||qd.line[0][wave][grp].DutyFlags())
+                        {
+                            printf("  Found BLUE flight at wave %d group %d\n", wave, grp);
+                            ilun[initind][0]=wave;
+                            ilun[initind][1]=grp;
+                            initind++;
+                        }
+                    }
                 }
+        
+                for (int i = 0; i < 8; ++i) {
+                    if (initind>i) 
+                    { 
+                        printf("Adding BLUE flight name for index %d (wave %d group %d)\n", i, ilun[i][0], ilun[i][1]);
+                        CString fname = LoadResString(qd.line[0][ilun[i][0]][0].descID);
+                        CString finalflightname;
+                        finalflightname = "UN " + fname + " Flight " + std::to_string(i + 1);
+                        gtk_combo_box_append_text(flight_name_combo, finalflightname);
 
-                CString posName = LoadResString(ids);
-                gtk_combo_box_append_text(flight_lead_combo, posName);
+                        // Flight LEAD
+                        int g = ilun[i][1];
+                        int ids__ = 0;
+                        switch (g) {
+                            case 0: ids__ = IDS_L_ELTPOS_0; break; // Lead 1
+                            case 1: ids__ = IDS_ELTPOS_1; break; // Wing 1
+                            case 2: ids__ = IDS_ELTPOS_2; break; // Lead 2
+                            case 3: ids__ = IDS_ELTPOS_3; break; // Wing 2
+                        }
+                        CString posName = LoadResString(ids__);
+                        gtk_combo_box_append_text(flight_lead_combo, posName);
+                    }
+                }
+            }
+            else
+            {
+                printf("Player side: RED\n");
+                // RED
+                int	ilch[8][2]={{0}};
+                int initindch=0;
+
+                for (int wave=0;wave<8;wave++)
+                {
+                    for (int grp=0;grp<3;grp++)
+                    { 
+                        if (qd.line[1][wave][grp].flights||qd.line[1][wave][grp].DutyFlags())
+                        {      
+                            ilch[initindch][0]=wave;
+                            ilch[initindch][1]=grp;
+                            initindch++;
+                        }
+                    }
+                }
+        
+                for (int i = 0; i < 8; ++i) {
+                    if (initindch>i) 
+                    { 
+                        CString fname = LoadResString(qd.line[1][ilch[i][0]][0].descID);
+                        CString finalflightname;
+                        finalflightname = "Red " + fname +" Flight " + std::to_string(i + 1);
+                        gtk_combo_box_append_text(flight_name_combo, finalflightname);
+
+                        // Flight LEAD
+                        int g = ilch[i][1];
+                        int ids__ = 0;
+                        switch (g) {
+                            case 0: ids__ = IDS_L_ELTPOS_0; break; // Lead 1
+                            case 1: ids__ = IDS_ELTPOS_1; break; // Wing 1
+                            case 2: ids__ = IDS_ELTPOS_2; break; // Lead 2
+                            case 3: ids__ = IDS_ELTPOS_3; break; // Wing 2
+                        }
+                        CString posName = LoadResString(ids__);
+                        gtk_combo_box_append_text(flight_lead_combo, posName);
+                    }
+                }
             }
 
             // Default selection
@@ -932,6 +1080,81 @@ static GtkWidget* make_quickmission_selector() {
             return arr;
         })()
     );
+
+    // ---------------------------------------
+    // Flight Name combo "changed" callback
+    // ---------------------------------------
+    g_signal_connect(flight_name_combo, "changed",
+        G_CALLBACK(+[] (GtkComboBox* cb, gpointer user) {
+            int sel = gtk_combo_box_get_active(cb);
+            if (sel < 0)
+                return;
+
+            QuickDef& qd = CSQuick1::quickmissions[CSQuick1::currquickmiss];
+            // Determine if selection is BLUE or RED flight
+            printf("Flight selection index: %d\n", sel);
+            if (qd.plside == 0) 
+            {
+                // BLUE flight
+                int wave = 0;
+                int grp = 0;
+                int count = 0;
+                for (int w = 0; w < 8; ++w) {
+                    for (int g = 0; g < 3; ++g) {
+                        if (qd.line[0][w][g].flights || qd.line[0][w][g].DutyFlags()) {
+                            if (count == sel) {
+                                printf("Found BLUE flight for selection %d at wave %d group %d\n", sel, w, g);
+                                wave = w;
+                                grp = g;
+                                break;
+                            }
+                            count++;
+                        }
+                    }
+                }
+                qd.plac = qd.line[0][wave][grp].actype;
+                qd.plwave = wave;
+                qd.plgrp = grp;
+                printf("Selected BLUE flight at wave %d group %d, setting player ac to %d\n",
+                       wave, grp, qd.plac);
+            } 
+            else 
+            {
+                // RED flight
+                int wave = 0;
+                int grp = 0;
+                int count = 0;
+                for (int w = 0; w < 8; ++w) {
+                    for (int g = 0; g < 3; ++g) {
+                        if (qd.line[1][w][g].flights || qd.line[1][w][g].DutyFlags()) {
+                            if (count == sel) {
+                                printf("Found RED flight for selection %d at wave %d group %d\n", sel, w, g);
+                                wave = w;
+                                grp = g;
+                                break;
+                            }
+                            count++;
+                        }
+                    }
+                }
+                qd.plac = qd.line[1][wave][grp].actype;
+                qd.plwave = wave;
+                qd.plgrp = grp;
+                printf("Selected RED flight at wave %d group %d, setting player ac to %d\n",
+                       wave, grp, qd.plac);
+            }
+        }),
+        NULL);
+
+    // ---------------------------------------
+    // Radio buttons "changed" callback
+    // ---------------------------------------
+    g_signal_connect(rb_un,  "toggled",
+        G_CALLBACK(on_rb_un_toggled),  flight_name_combo);
+
+    g_signal_connect(rb_red, "toggled",
+        G_CALLBACK(on_rb_red_toggled), flight_name_combo);
+
 
     // ---------------------------------------
     // Target Type combo "changed" callback
