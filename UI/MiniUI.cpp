@@ -70,59 +70,6 @@ static GtkWidget* make_transparent_button(const char* text) {
     return btn;
 }
 
-// ------------------------------------------------------------------
-// Transparent container – works with GTK2 + any C++ compiler
-// ------------------------------------------------------------------
-static gboolean transparent_expose_handler(GtkWidget *widget,
-                                           GdkEventExpose *event,
-                                           gpointer data)
-{
-    (void)event; (void)data;
-
-    cairo_t *cr = gdk_cairo_create(gtk_widget_get_window(widget));
-
-    cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, 0.8);   // 80% black
-    cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
-    cairo_paint(cr);
-
-    cairo_destroy(cr);
-    return FALSE;   // let children (labels, combo) draw on top
-}
-
-static void make_widget_transparent(GtkWidget* w)
-{
-    gtk_widget_set_app_paintable(w, TRUE);
-
-    GdkScreen* screen = gtk_widget_get_screen(w);
-    if (gdk_screen_is_composited(screen)) {
-        GdkColormap* rgba = gdk_screen_get_rgba_colormap(screen);
-        if (rgba)
-            gtk_widget_set_colormap(w, rgba);
-    }
-
-    g_signal_connect(G_OBJECT(w), "expose-event",
-                     G_CALLBACK(transparent_expose_handler), NULL);
-}
-
-static GtkWidget* make_transparent_container()
-{
-    GtkWidget* eventbox = gtk_event_box_new();
-
-    gtk_widget_set_app_paintable(eventbox, TRUE);
-
-    GdkScreen *screen = gtk_widget_get_screen(eventbox);
-    if (gdk_screen_is_composited(screen))
-    {
-        GdkColormap *rgba = gdk_screen_get_rgba_colormap(screen);
-        if (rgba)
-            gtk_widget_set_colormap(eventbox, rgba);
-    }
-
-    g_signal_connect(G_OBJECT(eventbox), "expose-event",
-                     G_CALLBACK(transparent_expose_handler), NULL);
-
-    return eventbox;
-}
 
 // Helper: Open ROOTS.DIR for path name
 const char* read_root_path(void) {
@@ -193,7 +140,7 @@ using EntryCallback = std::function<bool(Screen*)>;
 
 // Utility: placeholder widget for a dial
 static GtkWidget* make_placeholder(int idstextnumber) {
-    GtkWidget* transparent = make_transparent_container();
+    GtkWidget *transparent = gtk_vbox_new(FALSE, 0);
 
     GtkWidget* align = gtk_alignment_new(0.5, 0.5, 0, 0);
     CString ctext = LoadResString(idstextnumber);
@@ -316,9 +263,6 @@ public:
 
     void addPage(const char* /*title*/, GtkWidget* content) {
         if (count_ >= 3) return;
-
-        // Make panel transparent
-        make_widget_transparent(content);
 
         // Add to container but hide initially
         gtk_box_pack_start(GTK_BOX(container_), content, TRUE, TRUE, 0);
@@ -680,25 +624,55 @@ static void rebuild_flight_names(GtkComboBox* flight_name_combo)
     }
 }
 
+static void on_rb_scenario_toggled(GtkToggleButton* btn, gpointer user)
+{
+    if (!gtk_toggle_button_get_active(btn))
+        return;
+
+    GtkWidget* mission_desc_box = GTK_WIDGET(user); 
+    gtk_widget_show(mission_desc_box);
+#if 0
+    QuickDef& qd = CSQuick1::quickmissions[CSQuick1::currquickmiss];
+    qd.plside = 2;   // Scenario mode
+
+    auto* sw = static_cast<SideWidgets*>(user);
+    rebuild_flight_combos(sw->flight_name_combo, sw->flight_lead_combo);
+#endif
+
+    printf("Scenario selected\n");
+}
+
+
 static void on_rb_un_toggled(GtkToggleButton* btn, gpointer user)
 {
     if (gtk_toggle_button_get_active(btn)) {
+        GtkWidget* mission_desc_box = GTK_WIDGET(user); 
+        gtk_widget_hide(mission_desc_box); 
+
+#if 0
         QuickDef& qd = CSQuick1::quickmissions[CSQuick1::currquickmiss];
         qd.plside = 0;
 
         GtkComboBox* flight_name_combo = GTK_COMBO_BOX(user);
         rebuild_flight_names(flight_name_combo);
+#endif
+        printf("UN selected\n");
     }
 }
 
 static void on_rb_red_toggled(GtkToggleButton* btn, gpointer user)
 {
     if (gtk_toggle_button_get_active(btn)) {
+        GtkWidget* mission_desc_box = GTK_WIDGET(user); 
+        gtk_widget_hide(mission_desc_box); 
+#if 0
         QuickDef& qd = CSQuick1::quickmissions[CSQuick1::currquickmiss];
         qd.plside = 1;
 
         GtkComboBox* flight_name_combo = GTK_COMBO_BOX(user);
         rebuild_flight_names(flight_name_combo);
+#endif
+        printf("Red selected\n");
     }
 }
 
@@ -706,11 +680,10 @@ static void on_rb_red_toggled(GtkToggleButton* btn, gpointer user)
 
 static GtkWidget* make_quickmission_selector() {
     // Vertical box to hold everything (no black overlay)
-    GtkWidget* panel = make_transparent_container();   // draws your semi‑transparent black
+    GtkWidget *panel = gtk_vbox_new(FALSE, 0);
     GtkWidget* vbox  = gtk_vbox_new(FALSE, 8);
 
     gtk_container_add(GTK_CONTAINER(panel), vbox);
-
 
     // -------------------------------------------------
     // 1) Mission label + combo + description
@@ -724,12 +697,12 @@ static GtkWidget* make_quickmission_selector() {
     GtkWidget* mission_label = gtk_label_new("Mission");
     gtk_misc_set_alignment(GTK_MISC(mission_label), 1.0, 0.5); // right-align text
     apply_lightblue_label(mission_label);
-    gtk_box_pack_start(GTK_BOX(mission_hbox), mission_label, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(mission_hbox), mission_label, FALSE, FALSE, 15);
 
     // Combo box on the right
     GtkWidget* mission_combo = gtk_combo_box_new_text();
     gtk_widget_set_size_request(mission_combo, 260, -1); // widen if needed
-    gtk_box_pack_start(GTK_BOX(mission_hbox), mission_combo, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(mission_hbox), mission_combo, FALSE, FALSE, 15);
 
     // Fill mission combo
     int missionCount = 0;
@@ -739,12 +712,6 @@ static GtkWidget* make_quickmission_selector() {
         missionCount++;
     }
 
-    // Mission description below
-    GtkWidget* mission_desc = gtk_label_new("");
-    gtk_label_set_line_wrap(GTK_LABEL(mission_desc), TRUE);
-    gtk_label_set_width_chars(GTK_LABEL(mission_desc), 60);
-    apply_lightblue_label(mission_desc);
-
     // -------------------------------------------------
     // 2) Flight Name + Flight Lead (side-by-side)
     // -------------------------------------------------
@@ -752,17 +719,17 @@ static GtkWidget* make_quickmission_selector() {
     gtk_box_pack_start(GTK_BOX(vbox), flight_row_hbox, FALSE, FALSE, 0);
 
     // --- Flight Name ---
-    GtkWidget* flight_name_label = gtk_label_new("   Flight     ");
+    GtkWidget* flight_name_label = gtk_label_new("Flight  ");
     gtk_misc_set_alignment(GTK_MISC(flight_name_label), 1.0, 0.5);
     apply_lightblue_label(flight_name_label);
-    gtk_box_pack_start(GTK_BOX(flight_row_hbox), flight_name_label, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(flight_row_hbox), flight_name_label, FALSE, FALSE, 30);
 
     GtkWidget* flight_name_combo = gtk_combo_box_new_text();
-    gtk_widget_set_size_request(flight_name_combo, 180, -1);
+    gtk_widget_set_size_request(flight_name_combo, 160, -1);
     gtk_box_pack_start(GTK_BOX(flight_row_hbox), flight_name_combo, FALSE, FALSE, 0);
 
     // Spacer between the two combos (optional)
-    GtkWidget* spacer = gtk_label_new(" ");
+    GtkWidget* spacer = gtk_label_new("");
     gtk_box_pack_start(GTK_BOX(flight_row_hbox), spacer, FALSE, FALSE, 0);
 
     // --- Flight Lead ---
@@ -772,7 +739,7 @@ static GtkWidget* make_quickmission_selector() {
     gtk_box_pack_start(GTK_BOX(flight_row_hbox), flight_lead_label, FALSE, FALSE, 0);
 
     GtkWidget* flight_lead_combo = gtk_combo_box_new_text();
-    gtk_widget_set_size_request(flight_lead_combo, 180, -1);
+    gtk_widget_set_size_request(flight_lead_combo, 120, -1);
     gtk_box_pack_start(GTK_BOX(flight_row_hbox), flight_lead_combo, FALSE, FALSE, 0);
 
     // -------------------------------------------------
@@ -784,10 +751,10 @@ static GtkWidget* make_quickmission_selector() {
     gtk_box_pack_start(GTK_BOX(vbox), target_type_hbox, FALSE, FALSE, 0);
 
     // Label on the left
-    GtkWidget* target_type_label = gtk_label_new("     Target Zone");
+    GtkWidget* target_type_label = gtk_label_new("Target Zone");
     gtk_misc_set_alignment(GTK_MISC(target_type_label), 1.0, 0.5); // right-align text
     apply_lightblue_label(target_type_label);
-    gtk_box_pack_start(GTK_BOX(target_type_hbox), target_type_label, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(target_type_hbox), target_type_label, FALSE, FALSE, 40);
 
     // Combo box on the right
     GtkWidget* target_type_combo = gtk_combo_box_new_text();
@@ -801,52 +768,60 @@ static GtkWidget* make_quickmission_selector() {
     GtkWidget* target_name_hbox = gtk_hbox_new(FALSE, 12);   // same spacing as Target Zone
     gtk_box_pack_start(GTK_BOX(vbox), target_name_hbox, FALSE, FALSE, 0);
 
-    // Empty label to align with "Target Zone"
-    GtkWidget* target_name_label = gtk_label_new("");
-    gtk_widget_set_size_request(target_name_label, 160, -1);   // adjust width as needed
-    gtk_misc_set_alignment(GTK_MISC(target_name_label), 1.0, 0.5); // right-align text
-    apply_lightblue_label(target_name_label);
-    gtk_box_pack_start(GTK_BOX(target_name_hbox), target_name_label, FALSE, FALSE, 0);
-
     // Combo box on the right
     GtkWidget* target_name_combo = gtk_combo_box_new_text();
     gtk_widget_set_size_request(target_name_combo, 260, -1); // same width as Target Zone
-    gtk_box_pack_start(GTK_BOX(target_name_hbox), target_name_combo, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(target_name_hbox), target_name_combo, FALSE, FALSE, 215);
 
 
     // -------------------------------------------------
-    // 5) Side selection radio buttons (UN / Red)
+    // 5) Side selection radio buttons (Scenario / UN / Red)
     // -------------------------------------------------
-
-    // Horizontal box for the radio buttons
     GtkWidget* side_hbox = gtk_hbox_new(FALSE, 12);
     gtk_box_pack_start(GTK_BOX(vbox), side_hbox, FALSE, FALSE, 0);
 
-    // Create the first radio button ("UN")
-    GtkWidget* rb_un = gtk_radio_button_new_with_label(NULL, "UN");
+    // First button: Scenario (default)
+    GtkWidget* rb_scenario = gtk_radio_button_new_with_label(NULL, "Scenario");
+    apply_lightblue_label(gtk_bin_get_child(GTK_BIN(rb_scenario)));
+    gtk_box_pack_start(GTK_BOX(side_hbox), rb_scenario, FALSE, FALSE, 30);
+
+    // Second button: UN (same group as Scenario)
+    GtkWidget* rb_un =
+        gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(rb_scenario), "UN");
     apply_lightblue_label(gtk_bin_get_child(GTK_BIN(rb_un)));
     gtk_box_pack_start(GTK_BOX(side_hbox), rb_un, FALSE, FALSE, 0);
 
-    // Create the second radio button ("Red"), in the same group
-    GtkWidget* rb_red = gtk_radio_button_new_with_label_from_widget(
-        GTK_RADIO_BUTTON(rb_un), "Red");
+    // Third button: Red (same group)
+    GtkWidget* rb_red =
+        gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(rb_scenario), "Red");
     apply_lightblue_label(gtk_bin_get_child(GTK_BIN(rb_red)));
     gtk_box_pack_start(GTK_BOX(side_hbox), rb_red, FALSE, FALSE, 0);
 
-    // Default selection: UN
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(rb_un), TRUE);
+    // Default selection
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(rb_scenario), TRUE);
+
 
 
     // -------------------------------------------------
     // Mission description last
     // -------------------------------------------------
+    // Mission description below
+    GtkWidget* mission_desc = gtk_label_new("");
+    gtk_label_set_line_wrap(GTK_LABEL(mission_desc), TRUE);
+    gtk_label_set_width_chars(GTK_LABEL(mission_desc), 60);
+    apply_lightblue_label(mission_desc);
+
     // Add some extra vertical spacing
     GtkWidget* desc_spacer = gtk_label_new("");
     gtk_widget_set_size_request(desc_spacer, -1, 80); // 80 pixels tall
     gtk_box_pack_start(GTK_BOX(vbox), desc_spacer, FALSE, FALSE, 0);
 
     // Now add the mission description label
-    gtk_box_pack_start(GTK_BOX(vbox), mission_desc, FALSE, FALSE, 0);
+    GtkWidget* mission_desc_box = gtk_hbox_new(FALSE, 12);   // spacing = 12px
+    gtk_box_pack_start(GTK_BOX(vbox), mission_desc_box, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(mission_desc_box), mission_desc, FALSE, FALSE, 0);
+
+    gtk_widget_hide(mission_desc_box);
 
     // ---------------------------------------
     // Mission combo "changed" callback
@@ -953,7 +928,7 @@ static GtkWidget* make_quickmission_selector() {
             // -------------------------------------------------
             // Populate FLIGHT NAME and FLIGHT LEAD combos
             // -------------------------------------------------
-            if (qd.plside == 0)
+            //if (qd.plside == 0)
             {
                 printf("Player side: BLUE\n");
                 // BLUE
@@ -996,7 +971,7 @@ static GtkWidget* make_quickmission_selector() {
                     }
                 }
             }
-            else
+            //else
             {
                 printf("Player side: RED\n");
                 // RED
@@ -1149,11 +1124,15 @@ static GtkWidget* make_quickmission_selector() {
     // ---------------------------------------
     // Radio buttons "changed" callback
     // ---------------------------------------
-    g_signal_connect(rb_un,  "toggled",
-        G_CALLBACK(on_rb_un_toggled),  flight_name_combo);
+    g_signal_connect(rb_scenario, "toggled",
+        G_CALLBACK(on_rb_scenario_toggled), mission_desc_box);
+
+    g_signal_connect(rb_un, "toggled",
+        G_CALLBACK(on_rb_un_toggled), mission_desc_box);
 
     g_signal_connect(rb_red, "toggled",
-        G_CALLBACK(on_rb_red_toggled), flight_name_combo);
+        G_CALLBACK(on_rb_red_toggled), mission_desc_box);
+
 
 
     // ---------------------------------------
