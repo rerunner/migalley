@@ -106,9 +106,6 @@ extern GameSettings gameSettings;
 
 //RERUN extern	CDC g_OffScreenDC;
 HDC g_OffScreenDC; //RERUN
-extern TTF_Font * sdlTextFont; //RERUN global font for text rendering
-SDL_Surface *SdlOtherTextMessageSurface, *SdlTextMessage0Surface, *SdlTextMessage1Surface,
-             *SdlTopText4Surface;
 
 const ULong NO_BACKGROUND_WIPE=0x00000000;
 const ULong WIPE_ALPHA_MASK=0xFF000000;
@@ -576,32 +573,30 @@ void COverlay::DrawTopText()
 	SWord xpos=0;
 	SWord bupxpos=xpos;
 	sprintf(tempTotal,"%s: %3d%s ",OSpeedText.text,speed2,speedUnitStr);
-	//RERUN PrintAt2(xpos,TOPLINE_Y,temp);
+	PrintAt2(xpos,TOPLINE_Y,temp);
 
 	xpos=bupxpos+StrPixelLen2(OSpeedText.text)+3*digitWidth+StrPixelLen2(speedUnitStr)+doubleSpace;
 	bupxpos=xpos;
 	sprintf(temp,"%s: %1.2f ",OMachText.text,mach);
-	//RERUN PrintAt2(xpos,TOPLINE_Y,temp);
-	strcat(tempTotal, temp); //RERUN
+	PrintAt2(xpos,TOPLINE_Y,temp);
+	//strcat(tempTotal, temp); //RERUN
 
 	xpos=bupxpos+StrPixelLen2(OMachText.text)+4*digitWidth+doubleSpace;
 	bupxpos=xpos;
 	sprintf(temp,"%s: %5d%s ",OAltitudeText.text,altitude2,heightUnitStr);
-	//RERUN PrintAt2(xpos,TOPLINE_Y,temp);
-	strcat(tempTotal, temp); //RERUN
+	PrintAt2(xpos,TOPLINE_Y,temp);
+	//strcat(tempTotal, temp); //RERUN
 
 	xpos=bupxpos+StrPixelLen2(OAltitudeText.text)+6*digitWidth+StrPixelLen2(heightUnitStr)+doubleSpace;
 	bupxpos=xpos;
 	sprintf(temp,"%s: %3d ",OHdgText.text,heading);
-	//RERUN PrintAt2(xpos,TOPLINE_Y,temp);
-	strcat(tempTotal, temp); //RERUN
+	PrintAt2(xpos,TOPLINE_Y,temp);
+	//strcat(tempTotal, temp); //RERUN
 
 	xpos=bupxpos+StrPixelLen2(OHdgText.text)+3*digitWidth+doubleSpace;
 	sprintf(temp,"%s: %3d",OThrustText.text,thrust);
-	//RERUN PrintAt2(xpos,TOPLINE_Y,temp);
-	strcat(tempTotal, temp); //RERUN
-	if (SdlTopText4Surface == NULL)
-		SdlTopText4Surface = TTF_RenderText_Solid(sdlTextFont, tempTotal, color);
+	PrintAt2(xpos,TOPLINE_Y,temp);
+
 }
 
 inline bool COverlay::TestMessageText()
@@ -620,7 +615,7 @@ inline bool COverlay::TestMessageText()
 //Author		Paul    
 //Date			Thu 4 Jun 1998
 //------------------------------------------------------------------------------
-extern TTF_Font * sdlTextFont;
+
 void COverlay::DrawMessageText()
 {
 	SWord xpos=MESSAGE_X;
@@ -628,11 +623,7 @@ void COverlay::DrawMessageText()
 
 	if (!otherText->IsEmpty())
 	{
-		//RERUN PrintAt2(xpos,TOPLINE_Y2,const_cast<char*>(LPCTSTR(otherText[0])));
-		char * theMess = const_cast<char*>(LPCTSTR(otherText[0]));
-
-		if (SdlOtherTextMessageSurface == NULL)
-			SdlOtherTextMessageSurface = TTF_RenderText_Solid(sdlTextFont, theMess, color);
+		PrintAt2(xpos,TOPLINE_Y2,const_cast<char*>(LPCTSTR(otherText[0])));
 	}
 	else if (!_MsgBuffer.nothingatall)
 	{
@@ -640,20 +631,13 @@ void COverlay::DrawMessageText()
 		
 		if (!msgText[1].IsEmpty())
 		{
-			//RERUN PrintAt2(xpos,TOPLINE_Y3,const_cast<char*>(LPCTSTR(msgText[0])));
-			if (SdlTextMessage0Surface == NULL)
-				SdlTextMessage0Surface = TTF_RenderText_Solid(sdlTextFont, theMess0, color);
+			PrintAt2(xpos,TOPLINE_Y3,const_cast<char*>(LPCTSTR(msgText[0])));
 			xpos=MESSAGE_X;
-			//RERUN PrintAt2(xpos,TOPLINE_Y2,const_cast<char*>(LPCTSTR(msgText[1])));
-			char * theMess1 = const_cast<char*>(LPCTSTR(msgText[1]));
-			if (SdlTextMessage1Surface == NULL)
-				SdlTextMessage1Surface = TTF_RenderText_Solid(sdlTextFont, theMess1, color);
+			PrintAt2(xpos,TOPLINE_Y2,const_cast<char*>(LPCTSTR(msgText[1])));
 		}
 		else
 		{
-			//RERUN PrintAt2(xpos, TOPLINE_Y2, const_cast<char*>(LPCTSTR(msgText[0])));
-			if (SdlTextMessage0Surface == NULL)
-				SdlTextMessage0Surface = TTF_RenderText_Solid(sdlTextFont, theMess0, color);
+			PrintAt2(xpos, TOPLINE_Y2, const_cast<char*>(LPCTSTR(msgText[0])));
 		}
 	}
 	else if (messageTimer!=0) messageTimer=0;
@@ -996,6 +980,9 @@ void COverlay::RenderIcon(ICON& icn,bool clicked)
 //Author		Paul    
 //Date			Thu 4 Jun 1998
 //------------------------------------------------------------------------------
+#include "WIN3D.H"
+std::vector<OverlayMsg> g_overlayQueue;
+
 void COverlay::PrintAt(SWord x,SWord y,char* str)
 {
 	// Dead
@@ -1005,6 +992,7 @@ void COverlay::PrintAt2(SWord& x,SWord& y, const char* str)
 {
  	if (str)													//RJS 05Dec00
  	{
+#if 0 // RERUN
 		const unsigned char* ustr=(const unsigned char*)str;
 
 		while (*ustr)
@@ -1012,6 +1000,10 @@ void COverlay::PrintAt2(SWord& x,SWord& y, const char* str)
 			PutC3(x,y,_mbsnextc(ustr));
 			ustr=_mbsinc(ustr);
 		}
+#else
+	// RERUN - Queue overlay text for later rendering
+	g_overlayQueue.push_back(OverlayMsg{ x, y, str });
+#endif
 	}
 }
 
@@ -1082,7 +1074,7 @@ SLong COverlay::StrPixelLen2(const char* pstr)
 
 		while (*pstr)
 		{
-	 		retVal+=bigWidths[(*pstr)-32]+1;
+	 		retVal+=bigWidths[(*pstr)-32]+5; // RERUN from +1 to +5 so that text spacing looks better in hi res;
 			pstr++;
 		}
 	}
@@ -2422,6 +2414,7 @@ void COverlay::ProcessUIScreen()
 					const char* theString;
 					theString=prefixTable[pCurOpt->key];
 					PrintAt2(curx,cury,theString);
+					curx+=StrPixelLen2(const_cast<char*>(theString));//RERUN + some pixels to avoid overwriting number
 					theString=_DPlay.Messages[_DPlay.mySlot][index];
 					PrintAt2(curx,cury,theString);
 				}
@@ -2441,8 +2434,9 @@ void COverlay::ProcessUIScreen()
 					const char* theString;
 					theString=prefixTable[pCurOpt->key];
 					PrintAt2(curx,cury,theString);
+					curx+=StrPixelLen2(const_cast<char*>(theString));//RERUN + some pixels to avoid overwriting number
 					theString=LdStr(pCurOpt->resID+pCurOpt->resIDOffset);
-					PrintAt2(curx,cury,theString);
+					PrintAt2(curx,cury,theString); 
 					delete[]theString;
 				}
 			}
@@ -4443,10 +4437,8 @@ void MapScr::HandleUpDnLftRgtToggleKeys()
 	else if (Key_Tests.KeyPress3d(SHOOT))
 	{
 		//call the select routine for the current hilighted option
-#if 1 // RERUN
 		if (pCurOpt->selRtn!=NULL)
 			OverLay.pNewScr=(this->*(pCurOpt->selRtn))(pCurOpt->resIDOffset,(Key)pCurOpt->key);
-#endif
 	}
 }
 
@@ -4479,7 +4471,6 @@ Key MapScr::FirstMapInit()
 //------------------------------------------------------------------------------
 MapScr* MapScr::SelectFromFirstMap(UByte&,Key k)
 {
-#if 0 // RERUN
 	MapScr* retval=this;
 
 	switch (k)
@@ -4533,14 +4524,10 @@ MapScr* MapScr::SelectFromFirstMap(UByte&,Key k)
 		break;
 	}
 	return retval;
-#else
-	return 0;
-#endif 
 }
 
 MapScr COverlay::firstMapScr=
 {
-#if 0 // RERUN
 	MapScr::SCALE_GRIDORIGIN+/*MapScr::SCALE_GRIDOFFSETS+*/
 	MapScr::SCALE_DYNAMICSIZE+
 	MapScr::FLAG_MOUSEOVERHI,
@@ -4566,12 +4553,10 @@ MapScr COverlay::firstMapScr=
 		{IDS_MAP_EXIT,0,SEL_0,MYPREFIX MapScr::SelectFromFirstMap},
 		MSListEnd
 	}
-#endif
 };
 
 MapScr COverlay::firstMapScrCOMMS=
 {
-#if 0 // RERUN
 	MapScr::SCALE_GRIDORIGIN+/*MapScr::SCALE_GRIDOFFSETS+*/
 	MapScr::SCALE_DYNAMICSIZE+
 	MapScr::FLAG_MOUSEOVERHI,
@@ -4599,7 +4584,6 @@ MapScr COverlay::firstMapScrCOMMS=
 		{ IDS_MAP_EXIT, 0, SEL_0, MYPREFIX MapScr::SelectFromFirstMap },
 		MSListEnd
 	}
-#endif
 };
 
 /*******************
@@ -4634,40 +4618,8 @@ void COverlay::SendMessageAndCall(MESSAGE_STRUC* msg,DecisionAI* dec)
 void COverlay::MsgOptionSelected(MESSAGE_STRUC* msg,SLong op)
 {
 	DecisionAI* dec=msg->decisionhandler;
-//DeadCode AMM 21May99 	DecisionAI::OptionRef* opt=dec->GetMsgOptions();
 
 	DecisionMessage(dec,op,msg->callee,msg->target,msg->callee);
-
-//DeadCode AMM 21May99 	opt+=op;
-//DeadCode AMM 21May99 
-//DeadCode AMM 21May99 	if (_DPlay.Implemented || _Replay.Record)
-//DeadCode AMM 21May99 	{
-//DeadCode AMM 21May99 // COMMS: send message to other players indicating option selected
-//DeadCode AMM 21May99 // decision=0-100=7bits, option=0-9=4 bits, target=UID=14 bits (25 bits, only have 24!)
-//DeadCode AMM 21May99 // callee and caller are sender of packet
-//DeadCode AMM 21May99 
-//DeadCode AMM 21May99 
-//DeadCode AMM 21May99 		UByte option=(UByte)op;
-//DeadCode AMM 21May99 		UniqueID trg=msg->target->uniqueID.bitfieldUid.count;
-//DeadCode AMM 21May99 		UByte decision=msg->decisionhandler->optionnumber;
-//DeadCode AMM 21May99 
-//DeadCode AMM 21May99 		_DPlay.NewWingmanCommand(decision,option,trg);
-//DeadCode AMM 21May99 
-//DeadCode AMM 21May99 // On receipt Maybe call Send message and call instead of the following 3 lines
-//DeadCode AMM 21May99 
-//DeadCode AMM 21May99 //		MESSAGE_STRUC newMsg(opt->saidmsg,MSG_HIPRIORITY,msg->callee,msg->target,msg->callee);
-//DeadCode AMM 21May99 //		dec->AutoMsgDecision((AirStruc*)msg->callee,msg->target,(AirStruc*)msg->callee,&Art_Int,&newMsg);
-//DeadCode AMM 21May99 //		_Radio.TriggerMsg(newMsg);
-//DeadCode AMM 21May99 
-//DeadCode AMM 21May99 	}
-//DeadCode AMM 21May99 	else
-//DeadCode AMM 21May99 	{
-//DeadCode AMM 21May99 
-//DeadCode AMM 21May99 		MESSAGE_STRUC newMsg(opt->saidmsg,MSG_HIPRIORITY,msg->callee,msg->target,msg->callee);
-//DeadCode AMM 21May99 //DeadCode DAW 06Apr99 		dec->AutoMsgDecision((AirStruc*)msg->callee,msg->target,(AirStruc*)msg->callee,&Art_Int,&newMsg);
-//DeadCode AMM 21May99 //DeadCode DAW 06Apr99 		_Radio.TriggerMsg(newMsg);
-//DeadCode AMM 21May99 		SendMessageAndCall(&newMsg,opt->airesult[0]);
-//DeadCode AMM 21May99 	}
 }
 
 //------------------------------------------------------------------------------
@@ -4677,7 +4629,6 @@ void COverlay::MsgOptionSelected(MESSAGE_STRUC* msg,SLong op)
 //------------------------------------------------------------------------------
 void COverlay::ActionMessage(MESSAGE_STRUC* msg)
 {
-#if 0 
 	MapScr::OptionList termOpt=MSListEnd;
 	MapScr::OptionList escOpt = MSEscapeLine(MYPREFIX MapScr::SelectFrom3DOrders);
 	MapScr::OptionList blankOpt=MSBlankLine;
@@ -4712,7 +4663,6 @@ void COverlay::ActionMessage(MESSAGE_STRUC* msg)
 			SetToOrdersScreen();
 		}
 	}
-#endif
 }
 
 EXTERNAI(GroupInfoMsg,AirStrucPtr);
@@ -4784,7 +4734,6 @@ MapScr* MapScr::SelectFromUserMsg(UByte&,Key k)
 
 MapScr COverlay::userMsgScr=
 {
-#if 0
 	MapScr::JUSTIFY_CENTRE_SX+ /*MapScr::SCALE_GRIDWH+*/
 /*	MapScr::SCALE_GRIDORIGIN+MapScr::SCALE_GRIDOFFSETS+*/
 	MapScr::SCALE_DYNAMICSIZE,
@@ -4810,12 +4759,10 @@ MapScr COverlay::userMsgScr=
 		{ IDS_MAP_EXIT, 0, SEL_0, MYPREFIX MapScr::SelectFromUserMsg },
 		MSListEnd
 	}
-#endif
 };
 
 MapScr COverlay::userMsgScrCOMMS=
 {
-#if 0
 	MapScr::JUSTIFY_CENTRE_SX+/*MapScr::SCALE_GRIDWH+
 	MapScr::SCALE_GRIDORIGIN+MapScr::SCALE_GRIDOFFSETS+*/
 	MapScr::SCALE_DYNAMICSIZE,
@@ -4843,7 +4790,6 @@ MapScr COverlay::userMsgScrCOMMS=
 		{ IDS_MAP_EXIT, 0, SEL_0, MYPREFIX MapScr::SelectFromUserMsg },
 		MSListEnd
 	}
-#endif
 };
 
 //------------------------------------------------------------------------------
@@ -4921,7 +4867,6 @@ MapScr* MapScr::SelectFromUserOptsMap(UByte& a,Key k)
 
 MapScr COverlay::userOptsMapScr=
 {
-#if 0 
 	MapScr::SCALE_GRIDORIGIN+/*MapScr::SCALE_GRIDOFFSETS+*/
 	MapScr::SCALE_DYNAMICSIZE+
 	MapScr::FLAG_MOUSEOVERHI,
@@ -4950,7 +4895,6 @@ MapScr COverlay::userOptsMapScr=
 		{ IDS_DEFAULT, 0, SEL_0, MYPREFIX MapScr::SelectFromUserOptsMap },
 		MSListEnd
 	}
-#endif
 };
 
 //------------------------------------------------------------------------------
@@ -4984,23 +4928,6 @@ MapScr* MapScr::SelectFromUserOptions(UByte&,Key k)
 									Persons2::PlayerGhostAC);
 				_Miles.SetDelayed(false);
 
-	//DeadCode AMM 21May99 			opt+=SLong(k-SEL_1);
-	//DeadCode AMM 21May99 			if (_DPlay.Implemented || _Replay.Record)			//AMM 17May99
-	//DeadCode AMM 21May99 			{													//AMM 17May99
-	//DeadCode AMM 21May99 				UByte option=(UByte)(k-SEL_1);					//AMM 17May99
-	//DeadCode AMM 21May99 				UniqueID trg=Persons2::PlayerGhostAC->uniqueID.bitfieldUid.count;//AMM 17May99
-	//DeadCode AMM 21May99 				UByte decision=dec->optionnumber;				//AMM 17May99
-	//DeadCode AMM 21May99 				_DPlay.NewWingmanCommand(decision,option,trg);	//AMM 17May99
-	//DeadCode AMM 21May99 			}													//AMM 17May99
-	//DeadCode AMM 21May99 			else												//AMM 17May99
-	//DeadCode AMM 21May99 			{													//AMM 17May99
-	//DeadCode AMM 21May99 				MESSAGE_STRUC newMsg(opt->saidmsg,
-	//DeadCode AMM 21May99 									MSG_HIPRIORITY,
-	//DeadCode AMM 21May99 									Persons2::PlayerGhostAC,	//AMM 17May99
-	//DeadCode AMM 21May99 									Persons2::PlayerGhostAC->ai.unfriendly, //MS 18/05/99
-	//DeadCode AMM 21May99 									Persons2::PlayerGhostAC);	//AMM 17May99
-	//DeadCode AMM 21May99 				OverLay.SendMessageAndCall(&newMsg,opt->airesult[0]);
-	//DeadCode AMM 21May99 			}													//AMM 17May99
 				retval=NULL;
 			}
 		}
@@ -5010,7 +4937,6 @@ MapScr* MapScr::SelectFromUserOptions(UByte&,Key k)
 
 MapScr COverlay::userOptionsScr=
 {
-#if 0 // RERUN
 	MapScr::JUSTIFY_CENTRE_SX+/*MapScr::SCALE_GRIDWH+
 	MapScr::SCALE_GRIDORIGIN+MapScr::SCALE_GRIDOFFSETS*/
 	MapScr::SCALE_DYNAMICSIZE,
@@ -5039,7 +4965,6 @@ MapScr COverlay::userOptionsScr=
 		{ IDS_DEFAULT, 0, SEL_0, MYPREFIX MapScr::SelectFromUserOptions },
 		MSListEnd
 	}
-#endif
 };
 
 //------------------------------------------------------------------------------
@@ -5134,7 +5059,6 @@ MapScr* MapScr::SelectFrom3DOrders(UByte&,Key k)
 
 MapScr COverlay::orders3dScr=
 {
-#if 0 //RERUN
 	MapScr::JUSTIFY_CENTRE_SX+/*MapScr::SCALE_GRIDWH+
 	MapScr::SCALE_GRIDORIGIN+MapScr::SCALE_GRIDOFFSETS*/
 	MapScr::SCALE_DYNAMICSIZE,
@@ -5163,7 +5087,6 @@ MapScr COverlay::orders3dScr=
 		{ IDS_DEFAULT, 0, SEL_0, MYPREFIX MapScr::SelectFrom3DOrders },
 		MSListEnd
 	}
-#endif
 };
 
 /**********************
@@ -5202,7 +5125,6 @@ void COverlay::CancelAccel()
 //------------------------------------------------------------------------------
 Key MapScr::AccelMapInit()
 {
-#if 0 //RERUN
 	//build list of display options based on whether AutoMoveInfo.movecode is autofollowwp or not
 	MapScr::OptionList termOpt=MSListEnd;
 	MapScr::OptionList escOpt = MSEscapeLine(MYPREFIX MapScr::SelectFromAccelMap);
@@ -5248,7 +5170,7 @@ Key MapScr::AccelMapInit()
 		refreshLandscape=true;
 	OverLay.fZoomedMap=false;
 	map_scale=.5;
-#endif
+
 	return SEL_0;
 }
 
@@ -5279,81 +5201,22 @@ MapScr* MapScr::SelectFromAccelMap(UByte&,Key k)
 		retval=SelectFromFirstMap(dummy,k);
 		break;
 	case SEL_2:	//to next waypoint
-//DeadCode AMM 10Jun99 		//force the selected option to be hilighted
-//DeadCode AMM 10Jun99 		if (_DPlay.Implemented) // && !_DPlay.mapaccelselection)
-//DeadCode AMM 10Jun99 		{
-//DeadCode AMM 10Jun99 			_DPlay.SendMapAccelSelection(k);
-//DeadCode AMM 10Jun99 		}
-//DeadCode AMM 10Jun99 		else
-//DeadCode AMM 10Jun99 		{
-//DeadCode AMM 10Jun99 			OverLay.hilight=k;
-//DeadCode AMM 10Jun99 			OverLay.keyFlags=KF_ACCELON+KF_FASTACCEL;
-//DeadCode AMM 10Jun99 			Manual_Pilot.AutoToggle(ManualPilot::AUTOACCEL_WAYPT);
-//DeadCode AMM 10Jun99 			Manual_Pilot.acceltochanged=Manual_Pilot.ControlledAC2->waypoint;					  //JIM 18/04/99
-//DeadCode AMM 10Jun99 			refreshLandscape=true;
-//DeadCode AMM 10Jun99 		}
 		OverLay.AccelSelection(k,DPlay::ACCEL_NEXTWP);
 		break;
 	case SEL_1:	//forwards
 		//force the selected option to be hilighted
-//DeadCode AMM 10Jun99 		if (_DPlay.Implemented) // && !_DPlay.mapaccelselection)
-//DeadCode AMM 10Jun99 		{
-//DeadCode AMM 10Jun99 			_DPlay.SendMapAccelSelection(k);
-//DeadCode AMM 10Jun99 		}
-//DeadCode AMM 10Jun99 		else
-//DeadCode AMM 10Jun99 		{
-//DeadCode AMM 10Jun99 			OverLay.hilight=k;
-//DeadCode AMM 10Jun99 			OverLay.keyFlags=KF_ACCELON+KF_FASTACCEL;
-//DeadCode AMM 10Jun99 			Manual_Pilot.AutoToggle(ManualPilot::AUTOACCEL_FWD);
-//DeadCode AMM 10Jun99 			refreshLandscape=true;
-//DeadCode AMM 10Jun99 		}
 		OverLay.AccelSelection(k,DPlay::ACCEL_FORWARD);
 		break;
 	case SEL_3:	//message subject
 		//force the selected option to be hilighted
-//DeadCode AMM 10Jun99 		if (_DPlay.Implemented) // && !_DPlay.mapaccelselection)
-//DeadCode AMM 10Jun99 		{
-//DeadCode AMM 10Jun99 			_DPlay.SendMapAccelSelection(k);
-//DeadCode AMM 10Jun99 		}
-//DeadCode AMM 10Jun99 		else
-//DeadCode AMM 10Jun99 		{
-//DeadCode AMM 10Jun99 			OverLay.hilight=k;
-//DeadCode AMM 10Jun99 			OverLay.keyFlags=KF_ACCELON+KF_FASTACCEL;
-//DeadCode AMM 10Jun99 			Manual_Pilot.AutoToggle(ManualPilot::AUTOACCEL_MSG);
-//DeadCode AMM 10Jun99 			refreshLandscape=true;
-//DeadCode AMM 10Jun99 		}
 		OverLay.AccelSelection(k,DPlay::ACCEL_MESSAGESUBJECT);
 		break;
 	case SEL_4:	//mission IP
 		//force the selected option to be hilighted
-//DeadCode AMM 10Jun99 		if (_DPlay.Implemented) // && !_DPlay.mapaccelselection)
-//DeadCode AMM 10Jun99 		{
-//DeadCode AMM 10Jun99 			_DPlay.SendMapAccelSelection(k);
-//DeadCode AMM 10Jun99 		}
-//DeadCode AMM 10Jun99 		else
-//DeadCode AMM 10Jun99 		{
-//DeadCode AMM 10Jun99 			OverLay.hilight=k;
-//DeadCode AMM 10Jun99 			OverLay.keyFlags=KF_ACCELON+KF_FASTACCEL;
-//DeadCode AMM 10Jun99 			Manual_Pilot.AutoToggle(ManualPilot::AUTOACCEL_MISS);
-//DeadCode AMM 10Jun99 			Manual_Pilot.acceltochanged=Manual_Pilot.ControlledAC2->waypoint->FindWP(WPNAME_Target);
-//DeadCode AMM 10Jun99 			refreshLandscape=true;
-//DeadCode AMM 10Jun99 		}
 		OverLay.AccelSelection(k,DPlay::ACCEL_MISSIONIP);
 		break;
 	case SEL_5:	//home
 		//force the selected option to be hilighted
-//DeadCode AMM 10Jun99 		if (_DPlay.Implemented) // && !_DPlay.mapaccelselection)
-//DeadCode AMM 10Jun99 		{
-//DeadCode AMM 10Jun99 			_DPlay.SendMapAccelSelection(k);
-//DeadCode AMM 10Jun99 		}
-//DeadCode AMM 10Jun99 		else
-//DeadCode AMM 10Jun99 		{
-//DeadCode AMM 10Jun99 			OverLay.hilight=k;
-//DeadCode AMM 10Jun99 			OverLay.keyFlags=KF_ACCELON+KF_FASTACCEL;
-//DeadCode AMM 10Jun99 			Manual_Pilot.AutoToggle(ManualPilot::AUTOACCEL_MISS);
-//DeadCode AMM 10Jun99 			Manual_Pilot.acceltochanged=Manual_Pilot.ControlledAC2->waypoint->FindWP(WPNAME_Disperse);
-//DeadCode AMM 10Jun99 			refreshLandscape=true;
-//DeadCode AMM 10Jun99 		}
 		OverLay.AccelSelection(k,DPlay::ACCEL_HOME);
 		break;
 	default:
@@ -5364,7 +5227,6 @@ MapScr* MapScr::SelectFromAccelMap(UByte&,Key k)
 
 MapScr COverlay::accelMapScr=
 {
-#if 0 //RERUN
 	MapScr::SCALE_GRIDORIGIN+/*MapScr::SCALE_GRIDOFFSETS+*/
 	MapScr::SCALE_DYNAMICSIZE+
 	MapScr::FLAG_MOUSEOVERHI,
@@ -5392,7 +5254,6 @@ MapScr COverlay::accelMapScr=
 		{ IDS_MAP_EXIT, 0, SEL_0, MYPREFIX MapScr::SelectFromAccelMap },
 		MSListEnd
 	}
-#endif
 };
 
 /*************************
@@ -5406,7 +5267,6 @@ MapScr COverlay::accelMapScr=
 //------------------------------------------------------------------------------
 Key MapScr::WaypointMapInit()
 {
-#if 0 // RERUN
 	bool allowall=true;
 	if (Manual_Pilot.ControlledAC2 && Manual_Pilot.ControlledAC2->AutoMoveInfo.movecode!=AUTO_FOLLOWWP) allowall=false;
 	if (_DPlay.Implemented) allowall=false;
@@ -5431,7 +5291,6 @@ Key MapScr::WaypointMapInit()
 	*ol++=escOpt;
 	*ol++=quitOpt;
 	*ol++=termOpt;
-#endif
 	return SEL_0;
 }
 
@@ -5464,23 +5323,8 @@ MapScr* MapScr::SelectFromWaypointMap(UByte&,Key k)
 		}
 		break;
 	case SEL_2:	//accel to hilighted waypoint
-//DeadCode AMM 10Jun99 		OverLay.hilight=k;
-//DeadCode AMM 10Jun99 		OverLay.fZoomedMap=false;
-//DeadCode AMM 10Jun99 		OverLay.keyFlags=KF_ACCELON+KF_FASTACCEL;
-//DeadCode AMM 10Jun99 		Manual_Pilot.AutoToggle(ManualPilot::AUTOACCEL_WAYPT);
-//DeadCode AMM 10Jun99 		Manual_Pilot.acceltochanged=Manual_Pilot.ControlledAC2->waypoint;
-//DeadCode AMM 10Jun99 		OverLay.curr_waypoint=Manual_Pilot.ControlledAC2->waypoint;
-//DeadCode AMM 10Jun99 		refreshLandscape=true;
 		OverLay.AccelSelection(k,DPlay::ACCEL_WP_NEXTWP);
 		break;
-//dead	case SEL_3:	//accel to hilighted waypoint
-//dead		OverLay.hilight=k;
-//dead		OverLay.fZoomedMap=false;
-//dead		OverLay.keyFlags=KF_ACCELON+KF_FASTACCEL;
-//dead		Manual_Pilot.AutoToggle(ManualPilot::AUTOACCEL_WAYPT);
-//dead		Manual_Pilot.acceltochanged=OverLay.curr_waypoint;
-//dead		refreshLandscape=true;
-//dead		break;
 	case SEL_0:
 	case SEL_ESC:
 		UByte dummy;
@@ -5505,7 +5349,6 @@ MapScr* MapScr::SelectFromWaypointMap(UByte&,Key k)
 
 MapScr COverlay::waypointMapScr=
 {
-#if 0 //RERUN
 	MapScr::SCALE_GRIDORIGIN+/*MapScr::SCALE_GRIDOFFSETS+*/
 	MapScr::SCALE_DYNAMICSIZE+
 	MapScr::FLAG_MOUSEOVERHI,	
@@ -5533,7 +5376,6 @@ MapScr COverlay::waypointMapScr=
 		{ IDS_MAP_EXIT, 0, SEL_0, MYPREFIX MapScr::SelectFromWaypointMap },
 		MSListEnd
 	}
-#endif
 };
 
 /**********************
@@ -5601,7 +5443,6 @@ MapScr* MapScr::SelectFromRadioMap(UByte&,Key k)
 
 MapScr COverlay::radioMapScr=
 {
-#if 0 //RERUN
 	MapScr::SCALE_GRIDORIGIN+/*MapScr::SCALE_GRIDOFFSETS+*/
 	MapScr::SCALE_DYNAMICSIZE+
 	MapScr::FLAG_MOUSEOVERHI,
@@ -5630,7 +5471,6 @@ MapScr COverlay::radioMapScr=
 		{ IDS_MAP_EXIT, 0, SEL_0, MYPREFIX MapScr::SelectFromRadioMap },
 		MSListEnd
 	}
-#endif
 };
 
 /*************************
@@ -5679,7 +5519,6 @@ MapScr* MapScr::SelectFromCommsMsgMap(UByte&,Key k)
 
 MapScr COverlay::commsMsgMapScr=
 {
-#if 0 //RERUN
 	MapScr::SCALE_GRIDORIGIN+/*MapScr::SCALE_GRIDOFFSETS+*/
 	MapScr::SCALE_DYNAMICSIZE+
 	MapScr::FLAG_MOUSEOVERHI,
@@ -5707,7 +5546,6 @@ MapScr COverlay::commsMsgMapScr=
 		{ IDS_MAP_EXIT, 0, SEL_0, MYPREFIX MapScr::SelectFromCommsMsgMap },
 		MSListEnd
 	}
-#endif
 };
 
 /****************************
@@ -5756,7 +5594,6 @@ MapScr* MapScr::SelectFromCommsMsgOrders(UByte&,Key k)
 
 MapScr COverlay::commsMsgOrdersScr=
 {
-#if 0 // RERUN
 	MapScr::JUSTIFY_CENTRE_SX+/*MapScr::SCALE_GRIDWH+
 	MapScr::SCALE_GRIDORIGIN+MapScr::SCALE_GRIDOFFSETS*/
 	MapScr::SCALE_DYNAMICSIZE,
@@ -5784,7 +5621,6 @@ MapScr COverlay::commsMsgOrdersScr=
 		{ IDS_MAP_EXIT, 0, SEL_0, MYPREFIX MapScr::SelectFromCommsMsgOrders },
 		MSListEnd
 	}
-#endif
 };
 
 /*******************************
@@ -5829,7 +5665,6 @@ MapScr* MapScr::SelectFromCommsRecipientMap(UByte&,Key k)
 
 MapScr COverlay::commsRecipientMapScr=
 {
-#if 0 //RERUN
 	MapScr::SCALE_GRIDORIGIN+/*MapScr::SCALE_GRIDOFFSETS+*/
 	MapScr::SCALE_DYNAMICSIZE+
 	MapScr::FLAG_MOUSEOVERHI,
@@ -5857,7 +5692,6 @@ MapScr COverlay::commsRecipientMapScr=
 		{ IDS_MAP_EXIT, 0, SEL_0, MYPREFIX MapScr::SelectFromCommsRecipientMap },
 		MSListEnd
 	}
-#endif
 };
 
 /*******************************
@@ -5902,7 +5736,6 @@ MapScr* MapScr::SelectFromCommsRecipientOrders(UByte&,Key k)
 
 MapScr COverlay::commsRecipientOrdersScr=
 {
-#if 0 //RERUN
 	MapScr::JUSTIFY_CENTRE_SX+/*MapScr::SCALE_GRIDWH+
 	MapScr::SCALE_GRIDORIGIN+MapScr::SCALE_GRIDOFFSETS*/
 	MapScr::SCALE_DYNAMICSIZE,
@@ -5931,7 +5764,6 @@ MapScr COverlay::commsRecipientOrdersScr=
 		{ IDS_MAP_EXIT, 0, SEL_0, MYPREFIX MapScr::SelectFromCommsRecipientOrders },
 		MSListEnd
 	}
-#endif
 };
 
 /*********************
@@ -6119,7 +5951,6 @@ MapScr* MapScr::SelectFromReplayScreen(UByte&,Key k)
 
 MapScr COverlay::replayPlayingScr=
 {
-#if 0 //RERUN
 	MapScr::SCALE_DOUBLEIFGT800,
 	0,0,
 	320,32,
@@ -6163,12 +5994,10 @@ MapScr COverlay::replayPlayingScr=
 		MSEscapeLine(MYPREFIX MapScr::SelectFromReplayScreen),					//escape (eject)
 		MSListEnd
 	}
-#endif
 };
 
 MapScr COverlay::replayScr=
 {
-#if 0 //RERUN
 	MapScr::SCALE_DOUBLEIFGT800,
 	0,0,
 	320,32,
@@ -6212,7 +6041,6 @@ MapScr COverlay::replayScr=
 		MSEscapeLine(MYPREFIX MapScr::SelectFromReplayScreen),					//escape (eject)
 		MSListEnd
 	}
-#endif
 };
 
 //------------------------------------------------------------------------------
@@ -6251,7 +6079,6 @@ MapScr* MapScr::SelectFromCommsDialog(UByte&,Key k)
 
 MapScr COverlay::commsDialog=
 {
-#if 0 
 	MapScr::JUSTIFY_CENTRE_SX+MapScr::JUSTIFY_CENTRE_SY,
 	0,0,
 	320,32,
@@ -6271,7 +6098,6 @@ MapScr COverlay::commsDialog=
 		{ IDS_COMMSDIALCANCEL, 0, SEL_ESC, MYPREFIX MapScr::SelectFromCommsDialog },
 		MSListEnd
 	}
-#endif
 };
 
 /***********************
@@ -6374,7 +6200,6 @@ MapScr* MapScr::SelectFromMapViewScreen(UByte&,Key k)
 
 MapScr COverlay::mapViewScr=
 {
-#if 0 //RERUN
 	MapScr::SCALE_DOUBLEIFGT800,
 	0,0,
 	320,32,
@@ -6397,7 +6222,6 @@ MapScr COverlay::mapViewScr=
 		MSEscapeLine(MYPREFIX MapScr::SelectFromMapViewScreen),					//exit
 		MSListEnd
 	}
-#endif
 };
 
 //------------------------------------------------------------------------------
@@ -7285,126 +7109,16 @@ static ULong vsets[16]=
 	0xffff0000,0xffff00ff,0xffffff00,0xffffffff
 };
 
+
 void	ImageMap_Desc::MakeChar(int cx, int cy, int	uChar)
 {
-#if 0 //RERUN 
-	int ix=(cx*11) + 1;// + 4;
-	int iy=(cy*14) + 1;//4;
-	UWord theglyph[]={(uChar>>8)+(uChar<<8),0};
-
-	GLYPHMETRICS gm={0};
-//	MAT2		mat2={{51493,0},{0,0},{0,0},{60075,0}};
-	MAT2		mat2={{46811,0},{0,0},{0,0},{60075,0}};
-
-	enum	{MAX_BYTES_GLYPH=512};
-
-	DWORD testGGO = GetGlyphOutline(g_OffScreenDC,             // handle to DC
-		uChar,          // character to query
-		GGO_GRAY8_BITMAP,//GGO_GRAY8_BITMAP,        // data format
-		&gm, // glyph metrics
-		0,      // size of data buffer
-		NULL,    // data buffer
-		&mat2   // transformation matrix
-		);
-//RERUN	assert(testGGO < MAX_BYTES_GLYPH);
-
-	char buffer[MAX_BYTES_GLYPH];
-
-	DWORD ggo2= GetGlyphOutline(
-	  g_OffScreenDC,             // handle to DC
-	  uChar,          // character to query
-	  GGO_GRAY8_BITMAP,        // data format L
-	  &gm, // glyph metrics
-	  MAX_BYTES_GLYPH,      // size of data buffer
-	  buffer,    // data buffer
-	  &mat2   // transformation matrix
-	);
-	
-	int longswide=(gm.gmBlackBoxX+3)>>2;
-	ULong* src=(ULong*)buffer;
-	ULong* trg=(ULong*)(alpha+ix+iy*128);
-	int postlongsdelta=0;
-	UByte failcode=0;
-	if (gm.gmBlackBoxX>10)
-	{
-		failcode=0x40+gm.gmBlackBoxX;
-		postlongsdelta=longswide-3;
-		longswide=3;
-	}
-	//gm.gmptGlyphOrigin.y is where on the glyph the baseline is drawn.
-	//I want the baseline at row 11/16
-	int starty=11-gm.gmptGlyphOrigin.y;
-	if (starty<0)
-	{
-		failcode=0x20+starty;
-		starty=0;
-	}
-	if (starty>13)
-	{
-		failcode=0x20+starty;
-		starty=13;
-	}
-	int gmBlackBoxY=gm.gmBlackBoxY+starty;
-	if (gmBlackBoxY>13)
-	{
-		failcode=0x50+gmBlackBoxY;
-		gmBlackBoxY=13;
-	}
-
-	body[uChar&0x7F] = gm.gmCellIncX + 1;
-	alpha[uChar&0x7F] = failcode;
-	{//assume(longswide>=0 && longswide<=4);
-		int y,x;
-		for (y=0;y<starty;y++)
-		{
-				*trg++=0;
-				*trg++=0;
-				*trg++=0;
-				trg+=29;
-		}
-		for (;y<gmBlackBoxY;y++)
-		{
-			for (x=0;x<longswide;x++)
-			{
-				ULong v=*src++;
-				ULong t=v&0x40404040;
-				v-=t;
-//converting byte seperatyed flags to nibble.
-				ULong u=t>>14;
-				t+=u;
-				u=t>>7;
-				t+=u;
-//deleting crap
-				t&=0x3C0;
-//putting nibble in right place
-				t>>=6;
-				v<<=2;
-				v|=vsets[t];//hoping optimiser will reduce shift count.
-				*trg++=v;
-			}
-			src+=postlongsdelta;
-			for (;x<3;x++)
-			{
-				*trg++=0;
-			}
-			trg+=29;
-		}
-		for (;y<14;y++)
-		{
-				*trg++=0;
-				*trg++=0;
-				*trg++=0;
-				trg+=29;
-		}
-
-		assert((int(trg)-int(alpha))<=(128*128)+29);
-	}
-#endif
+// RERUN DEAD
 }
 
 extern HWND global_hWnd; //RERUN FONT TEST
 void	ImageMap_Desc::InitFont(int	pageno, int width, int height)
 {
+	printf("ImageMap_Desc::InitFont called for page %d, %d x %d\n",pageno,width,height);
 #if 0 //RERUN
 // fill main map with white...
 	int cx, cy;
@@ -7417,7 +7131,7 @@ void	ImageMap_Desc::InitFont(int	pageno, int width, int height)
 
 // fill transparency with font table...
 //RERUN	CFont* oldfont=g_OffScreenDC.SelectObject(::g_AllFonts[2][0]);
-	g_OffScreenDC = GetDC(global_hWnd); //RERUN FONT TEST
+	// RERUN g_OffScreenDC = GetDC(global_hWnd); //RERUN FONT TEST
 
 	int	realpageno = pageno>>1;
 
@@ -7468,6 +7182,12 @@ void	ImageMap_Desc::InitFont(int	pageno, int width, int height)
 
 void COverlay::PutC3(SWord& x,SWord& y,int uChar)
 {
+	printf("%c",(char)uChar);
+	if ((char)(uChar) == '.')
+	{
+		printf("\n");
+	}
+
 	int	pageno = (uChar & 0x7f00) >> 7;
 	int	index = uChar & 0xFF;
 

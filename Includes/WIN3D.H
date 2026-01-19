@@ -38,6 +38,14 @@
 extern UByte videoBuffer; //RERUN
 #define SDL_PIXELBITCOUNT 16 //RERUN for SDL
 
+// RERUN Overlay message queue
+struct OverlayMsg {
+    int x;
+    int y;
+    std::string text;
+};
+extern std::vector<OverlayMsg> g_overlayQueue;
+
 class direct_draw;
 
 typedef class direct_draw DirectDD,*DirectDDP;
@@ -103,6 +111,7 @@ class direct_draw
 
 	public:
 	void XX_ScreenFlip_Vulkan(SDL_Surface *ddsBack);
+	void VulkanPrint(SWord& x,SWord& y, const char* str);
 
 	protected:
 	uint32_t FindMemory(uint32_t mask, VkMemoryPropertyFlags flags);

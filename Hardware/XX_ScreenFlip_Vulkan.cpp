@@ -4,6 +4,7 @@
 #include "XX_ScreenFlip_Vulkan.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_vulkan.h>
+#include <SDL_ttf.h> //RERUN
 #include "WIN3D.H"
 #include <cassert>
 #include <cstring>
@@ -15,8 +16,6 @@
 #include <iostream>
 #include <memory>    // for std::unique_ptr and std::make_unique
 
-extern SDL_Surface *SdlOtherTextMessageSurface, *SdlTextMessage0Surface, *SdlTextMessage1Surface,
-                   *SdlTopText4Surface;
 extern SWord TOPLINE_Y;
 extern SWord TOPLINE_Y2;
 extern SWord TOPLINE_Y3;
@@ -640,8 +639,7 @@ static void blitSurfaceToStaging(SDL_Surface* src, int dstX, int dstY, uint8_t* 
     if (conv != src) SDL_FreeSurface(conv);
 }
 
-
-
+extern TTF_Font * sdlTextFont;
 void direct_draw::XX_ScreenFlip_Vulkan(SDL_Surface* ddsBack)
 {
     vkWaitForFences(vkDevice, 1, &fence, VK_TRUE, UINT64_MAX);
@@ -675,17 +673,30 @@ void direct_draw::XX_ScreenFlip_Vulkan(SDL_Surface* ddsBack)
             }
         }
 
-        // --- Composite SDL text surfaces into the staging buffer ---
-        blitSurfaceToStaging(SdlOtherTextMessageSurface, 0, TOPLINE_Y2, mapped, scaleX, scaleY, vkExtent);
-        blitSurfaceToStaging(SdlTextMessage0Surface, 0, TOPLINE_Y2, mapped, scaleX, scaleY, vkExtent);
-        blitSurfaceToStaging(SdlTextMessage1Surface, 0, TOPLINE_Y3, mapped, scaleX, scaleY, vkExtent);
-        blitSurfaceToStaging(SdlTopText4Surface, 0, TOPLINE_Y, mapped, scaleX, scaleY, vkExtent);
+        {
+            for (const auto& msg : g_overlayQueue) {
+                SDL_Surface* surf = TTF_RenderText_Solid(
+                    sdlTextFont,
+                    msg.text.c_str(),
+                    SDL_Color{255,255,255,255}
+                );
+                if (!surf) continue;
 
-        // --- Free the text surfaces ---
-        SafeFreeSurface(SdlOtherTextMessageSurface);
-        SafeFreeSurface(SdlTextMessage0Surface);
-        SafeFreeSurface(SdlTextMessage1Surface);
-        SafeFreeSurface(SdlTopText4Surface);
+                blitSurfaceToStaging(
+                    surf,
+                    msg.x,
+                    msg.y,
+                    reinterpret_cast<uint8_t*>(stagingPtr),
+                    scaleX,
+                    scaleY,
+                    vkExtent
+                );
+
+                SafeFreeSurface(surf);
+            }
+
+            g_overlayQueue.clear(); // ready for next frame
+        }
 
         // --- Flush if non-coherent ---
         if (!stagingMemoryCoherent) {

@@ -82,8 +82,7 @@ questions about this file may be asked at http://www.simhq.com/
 #include "WinMig3D.H" //RERUN
 
 extern SWord	winmode_w, winmode_h; //RERUN
-extern SDL_Surface *SdlOtherTextMessageSurface, *SdlTextMessage0Surface, *SdlTextMessage1Surface,
-                   *SdlTopText4Surface;
+
 extern SWord TOPLINE_Y;
 extern SWord TOPLINE_Y2;
 extern SWord TOPLINE_Y3;
@@ -413,54 +412,12 @@ void	MigDisplay::XX_ScreenFlip()
 	break;
 
 	}
-	//Texture flip in SDL2, to be placed a a better location
-	SDL_Texture * otherTextMessageTexture = SDL_CreateTextureFromSurface(DD.lpDD2, SdlOtherTextMessageSurface);
-	SDL_Texture * textMessage0Texture = SDL_CreateTextureFromSurface(DD.lpDD2, SdlTextMessage0Surface);
-	SDL_Texture * textMessage1Texture = SDL_CreateTextureFromSurface(DD.lpDD2, SdlTextMessage1Surface);
-	int otherTexW = 0;
-	int otherTexH = 0;
-	SDL_QueryTexture(otherTextMessageTexture, NULL, NULL, &otherTexW, &otherTexH);
-	SDL_Rect dstrectOther = { 0, TOPLINE_Y2, otherTexW, otherTexH };
-	int tex0W = 0;
-	int tex0H = 0;
-	SDL_QueryTexture(textMessage0Texture, NULL, NULL, &tex0W, &tex0H);
-	SDL_Rect dstrectMess0 = { 0, TOPLINE_Y2, tex0W, tex0H };
-	int tex1W = 0;
-	int tex1H = 0;
-	SDL_QueryTexture(textMessage1Texture, NULL, NULL, &tex1W, &tex1H);
-	SDL_Rect dstrectMess1 = { 0, TOPLINE_Y3, tex1W, tex1H };
 
-	//////
-	SDL_Texture * topText4Texture = SDL_CreateTextureFromSurface(DD.lpDD2, SdlTopText4Surface);
-	//4
-	int topText4W = 0;
-	int topText4H = 0;
-	SDL_QueryTexture(topText4Texture, NULL, NULL, &topText4W, &topText4H);
-	SDL_Rect dstrecttopText4 = { 0, TOPLINE_Y, topText4W, topText4H };
-	//////
 
 	if (SDL_RenderClear(DD.lpDD2) != DD_OK)	{printf("Error: %d\n", SDL_GetError());}
 	if (SDL_RenderCopy(DD.lpDD2, Master_3d.SdlMigTexture, NULL, NULL) != DD_OK)	{printf("Error: %d\n", SDL_GetError());}
-	SDL_RenderCopy(DD.lpDD2, otherTextMessageTexture, NULL, &dstrectOther);
-	SDL_RenderCopy(DD.lpDD2, textMessage0Texture, NULL, &dstrectMess0);
-	SDL_RenderCopy(DD.lpDD2, textMessage1Texture, NULL, &dstrectMess1);
-	/////
-	SDL_RenderCopy(DD.lpDD2, topText4Texture, NULL, &dstrecttopText4);
-	/////
 	SDL_RenderPresent(DD.lpDD2);
 	
-	SDL_FreeSurface(SdlOtherTextMessageSurface);
-	SDL_FreeSurface(SdlTextMessage0Surface);
-	SDL_FreeSurface(SdlTextMessage1Surface);
-	SdlOtherTextMessageSurface = SdlTextMessage0Surface = SdlTextMessage1Surface = NULL;
-	SDL_DestroyTexture(otherTextMessageTexture);
-	SDL_DestroyTexture(textMessage0Texture);
-	SDL_DestroyTexture(textMessage1Texture);
-	/////
-	SDL_FreeSurface(SdlTopText4Surface);
-	SdlTopText4Surface = NULL;
-	SDL_DestroyTexture(topText4Texture);
-	/////
 }
 
 
