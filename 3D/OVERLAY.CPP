@@ -1933,29 +1933,34 @@ void COverlay::InitMousePos()
 //Author		Paul    
 //Date			Sat 20 Feb 1999
 //------------------------------------------------------------------------------
+static bool prevMouseDown = false;
 bool COverlay::UpdateMousePos()
 {
-	_Analogue.PollPosition();
-	int newMouseX=(SWord)_Analogue.ReadPosition(AU_UI_X)+32768;
+    int sdlMouseX, sdlMouseY; 
+    SDL_GetMouseState(&sdlMouseX, &sdlMouseY);
 
-	fMouseDisabled=false;
+    fMouseDisabled = false;
 
-	if (newMouseX==-0x8000) fMouseDisabled=true;
+    mouseX = sdlMouseX;
+    mouseY = sdlMouseY;
 
-	mouseX=newMouseX*(physicalWidth-10)/65536;
+    bool retval = false;
 
-	int newMouseY=(SWord)_Analogue.ReadPosition(AU_UI_Y)+32768;
-	if (newMouseY==-0x8000) fMouseDisabled=true;
+    // Check current mouse state
+    bool mouseDown = (SDL_GetMouseState(NULL, NULL) & SDL_BUTTON(SDL_BUTTON_LEFT)) != 0;
 
-	mouseY=newMouseY*(physicalHeight-10)/65536;
+    // Edge detection: true only on the transition from up → down
+    if (mouseDown && !prevMouseDown)
+        retval = true;
 
-	bool retval;
-		
-	if (Key_Tests.KeyPress3d(MENUSELECT))
-		retval=true;
-	else
-		retval=false;
-	return retval;
+    // Update previous state for next frame
+    prevMouseDown = mouseDown;
+
+    // Also include your MENUSELECT key logic
+    if (Key_Tests.KeyPress3d(MENUSELECT))
+        retval = true;
+
+    return retval;
 }
 
 //------------------------------------------------------------------------------
@@ -1965,8 +1970,8 @@ bool COverlay::UpdateMousePos()
 //------------------------------------------------------------------------------
 void COverlay::LoaderScreen(int stage)
 {
-	if (Save_Data.fSoftware)
-		return;
+	//RERUN if (Save_Data.fSoftware)
+	//RERUN return;
 
 	int realStage,subStage;
 	realStage=stage>>8;
@@ -2025,8 +2030,8 @@ void COverlay::LoaderScreen(int stage)
 
 void COverlay::CommsWaitingScreen(int stage)
 {
-	if (Save_Data.fSoftware)
-		return;
+	//if (Save_Data.fSoftware)
+	//	return;
 
 	int realStage,subStage;
 	realStage=0;

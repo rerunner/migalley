@@ -235,6 +235,9 @@ int miginit()
 	Master_3d.SdlWinInst = win;
 	Master_3d.SdlMigTexture = NULL;
 
+	SDL_SetRelativeMouseMode(SDL_TRUE);
+	//SDL_SetWindowGrab(win, SDL_TRUE);
+
 	SDL_SysWMinfo SysInfo; //Will hold our MigWindow information
 	SDL_VERSION(&SysInfo.version); //Set SDL version
 
@@ -397,7 +400,6 @@ inline int SDLScancodeToDIK(SDL_Scancode sc)
 }
 
 //////////////////////////////////
-
 int migfly()
 {
 	m_pfullpane->StartFlying();

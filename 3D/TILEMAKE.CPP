@@ -4475,7 +4475,8 @@ void RenderTile2Surface(UByte* pdata,ROWANSURFACEDESC* prsd)
 	else if (prsd->dwWidth==32)		scale=3;
 	else if (prsd->dwWidth==16)		scale=4;
 	else if (prsd->dwWidth==8)		scale=5;
-	else assert(false&&"ERROR:Silly scale factor");
+	else 
+		assert(false&&"ERROR:Silly scale factor");
 
 	while (primCount--)
 	{
