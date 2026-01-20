@@ -24,15 +24,17 @@ A *native* Linux version of Rowan's MigAlley.
 
 8. Add Vulkan staging and pipeline as alternative to SDL Renderer. Include a simple vulkan shader with CRT effect.
 
-9. Create a Joystick port from DirectInput to SDL2.
+9. Activate in-flight Map and radio messages menu.
 
-10. Recreate the full UI, menus, map, campaign planner. This is going to be a lot of work.
+10. Create a Joystick port from DirectInput to SDL2.
 
-11. See what is next (e.g. multiplayer, direct3d to vulkan, etc).
+10. Recreate the full UI, activating all menus, maps, campaign planner. This is going to be a lot of work.
+
+11. See what is next (e.g. multiplayer, full vulkan replacement, etc).
 
 
 # Status
-*Step 8 completed* 
+*Step 10 completed* 
 
 The core game is working, tested using Manjaro Linux. 
 It currently uses:
@@ -40,8 +42,9 @@ It currently uses:
 - Vulkan (including shaders) for the fixed pipeline and display inside the SDL window.
 - SDL Mixer for the audio
 - SDL TTF for the in-game fonts+text.
+- SDL input for mouse and joystick
  
-The UI is for now just a simple button clicker to start Hot Shot, Quick Mission, Campaign and Full War in single player mode. But will grow to a real replacement of the original MFC UI.
+The Main UI is not yet complete. It allows to start Hot Shot, Quick Mission, Campaign and Full War in single player mode. The Quick Mission UI is fairly complete, all missions and flights can be selected. The UI will grow to a real replacement of the original MFC UI. The main remaining challenge is the UI planning map for Campaign and Full War.
 
 The project now relies on 32 bits SDL2 & GTK2 dependencies to build and run.
 
