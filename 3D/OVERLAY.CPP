@@ -502,7 +502,7 @@ void COverlay::DrawInfoBar()
 		else
 		{
 			POLYGON.DoSmokedGlassBox(0,physicalHeight-local_box_height,physicalWidth+1,local_box_height,BLACK);
-			//RERUN POLYGON.SetFontColour(WHITE);
+			POLYGON.SetFontColour(WHITE);
 		}
 	}
 	TOPLINE_Y=physicalHeight-box_height+1;
@@ -579,24 +579,20 @@ void COverlay::DrawTopText()
 	bupxpos=xpos;
 	sprintf(temp,"%s: %1.2f ",OMachText.text,mach);
 	PrintAt2(xpos,TOPLINE_Y,temp);
-	//strcat(tempTotal, temp); //RERUN
 
 	xpos=bupxpos+StrPixelLen2(OMachText.text)+4*digitWidth+doubleSpace;
 	bupxpos=xpos;
 	sprintf(temp,"%s: %5d%s ",OAltitudeText.text,altitude2,heightUnitStr);
 	PrintAt2(xpos,TOPLINE_Y,temp);
-	//strcat(tempTotal, temp); //RERUN
 
 	xpos=bupxpos+StrPixelLen2(OAltitudeText.text)+6*digitWidth+StrPixelLen2(heightUnitStr)+doubleSpace;
 	bupxpos=xpos;
 	sprintf(temp,"%s: %3d ",OHdgText.text,heading);
 	PrintAt2(xpos,TOPLINE_Y,temp);
-	//strcat(tempTotal, temp); //RERUN
 
 	xpos=bupxpos+StrPixelLen2(OHdgText.text)+3*digitWidth+doubleSpace;
 	sprintf(temp,"%s: %3d",OThrustText.text,thrust);
 	PrintAt2(xpos,TOPLINE_Y,temp);
-
 }
 
 inline bool COverlay::TestMessageText()
@@ -7123,7 +7119,6 @@ void	ImageMap_Desc::MakeChar(int cx, int cy, int	uChar)
 extern HWND global_hWnd; //RERUN FONT TEST
 void	ImageMap_Desc::InitFont(int	pageno, int width, int height)
 {
-	printf("ImageMap_Desc::InitFont called for page %d, %d x %d\n",pageno,width,height);
 #if 0 //RERUN
 // fill main map with white...
 	int cx, cy;

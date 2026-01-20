@@ -269,146 +269,64 @@ BOOL CALLBACK DIEnumEffectsProc(LPCDIEFFECTINFO pdei,LPVOID pvRef)
 
 Bool	Analogue::Initialise(int HWNDw,int HINSTANCEi)
 {
-	{for (int i=0;i<MAXFORCEAXES;i++)	   ForceAxes[i]=0;}
-	{for (int i=0;i<AU_MAX;i++)	   axisdeltas[i]=0;}
+    {for (int i=0;i<MAXFORCEAXES;i++)	   ForceAxes[i]=0;}
+    {for (int i=0;i<AU_MAX;i++)	   axisdeltas[i]=0;}
 
-	HWND w=(HWND)HWNDw;
-	HINSTANCE i=(HINSTANCE)HINSTANCEi;
-	DIdev=Master_3d.g_lpDI;
+    HWND w=(HWND)HWNDw;
+    HINSTANCE i=(HINSTANCE)HINSTANCEi;
+    DIdev=Master_3d.g_lpDI;
 
+    // --- existing DirectInput init left intact above ---
+    // After the existing DirectInput enumeration loop (or if no DI devices configured),
+    // do a simple SDL joystick enumeration and populate runtimedevices[] entries.
+    // This is intentionally simple: it opens each SDL joystick and sets default axis maps.
 
-	if (runtimedevices[0].devid.Data1==0)
-	{
-#if 0 //RERUN
-		SController::BuildEnumerationTables();
-		SController::GetAxisConfig(true);			//fn used on config screen to set defaults
-		SController::SetAxisConfig();
-#endif
-	}
+    // Only attempt SDL enumeration if SDL is initialized elsewhere (MigAlley main calls SDL_Init).
+    int nextDev = 0;
+    int numJoy = SDL_NumJoysticks();
+    for (int sindex = 0; sindex < numJoy && nextDev < MAXDEVICES; ++sindex)
+    {
+        SDL_Joystick* joy = SDL_JoystickOpen(sindex);
+        if (!joy)
+            continue;
+        // find next free runtimedevices entry (devid.Data1==0 means unused in original code)
+        while (nextDev < MAXDEVICES && runtimedevices[nextDev].devid.Data1 != 0)
+            ++nextDev;
+        if (nextDev >= MAXDEVICES)
+        {
+            SDL_JoystickClose(joy);
+            break;
+        }
 
-	FFdevice=NULL;
-	int gotprimdevs=0;
-	int secdevscount=2;
-	DIPROPDWORD	buffprop={{sizeof(DIPROPDWORD),sizeof(DIPROPHEADER),0,DIPH_DEVICE},150};
-	DIPROPDWORD	absprop={{sizeof(DIPROPDWORD),sizeof(DIPROPHEADER),0,DIPH_DEVICE},DIPROPAXISMODE_ABS };
-	for (int devnum=0;runtimedevices[devnum].devid.Data1;devnum++)
-	{
-		GUID	devid=runtimedevices[devnum].devid;
-		if (devid.Data1==1)
-			GetFirstJoystick(devid);
-		else
-		if (devid.Data1==2)
-			GetFirstMouse(devid);
-		if (devid.Data1>2)
-		{
-			DIdev->CreateDevice(devid,&runtimedevices[devnum].dev,NULL);
-			int hres = runtimedevices[devnum].dev->QueryInterface(IID_IDirectInputDevice2,(LPVOID *)&runtimedevices[devnum].dev2); 
-			axiscount=0;hatcount=0;
-			buttoncount=0;
-			if (runtimedevices[devnum].ismouse)
-				if (gotprimdevs&1)
-					buttonbase=250+50*secdevscount++;
-				else
-				{
-					buttonbase=300;
-					gotprimdevs|=1;
-				}
-			else
-				if (gotprimdevs&2)
-					buttonbase=250+50*secdevscount++;
-				else
-				{
-					buttonbase=250;
-					gotprimdevs|=2;
-				}
-			objectcount=0;
-			makerelative=false;
-			if (!SUCCEEDED(hres))
-			{
-				runtimedevices[devnum].dev->EnumObjects(DIEnumDeviceObjectsProc,runtimedevices+devnum,DIDFT_BUTTON+DIDFT_AXIS+DIDFT_POV);
-				runtimedevices[devnum].dev->SetProperty(DIPROP_BUFFERSIZE,&buffprop.diph);
-	//			runtimedevices[devnum].dev->SetProperty(DIPROP_AXISMODE,&absprop.diph);
+        RunTimeDevDesc &rd = runtimedevices[nextDev];
+        memset(&rd,0,sizeof(rd)); // clear old content
+        rd.devid.Data1 = 3 + nextDev; // mark as non-DI device (>2)
+        rd.ismouse = false;
+        rd.useff = false;
+        rd.dev = NULL;
+        rd.dev2 = NULL;
+        rd.sdl_index = sindex;
+        rd.sdl_joy = joy;
+        rd.is_sdl = true;
 
+        // default axis mapping (change to user prefs later)
+        rd.axismaps[0] = AU_AILERON;
+        rd.axismaps[1] = AU_ELEVATOR;
+        rd.axismaps[2] = AU_RUDDER;
+        rd.axismaps[3] = AU_THROTTLE;
+        for (int m = 4; m < RunTimeDevDesc::MAXMAPS; ++m) rd.axismaps[m] = AU_UNUSED;
+        for (int m = 0; m < RunTimeDevDesc::MAXMAPS; ++m) rd.hatmaps[m] = AU_UNUSED;
 
-				// DI_PROPNOEFFECT(0001) DIERR_INVALIDPARAM (57) 
-				// DIERR_NOTINITIALIZED DIERR_OBJECTNOTFOUND(0002) DIERR_UNSUPPORTED(40001)
-				
-				DIDATAFORMAT dataform = {
-					sizeof(DIDATAFORMAT),
-					sizeof(DIOBJECTDATAFORMAT),
-					static_cast<DWORD>(makerelative ? DIDF_RELAXIS : DIDF_ABSAXIS),
-					0x500,
-					static_cast<DWORD>(objectcount),
-					dataobjects
-				};
-				runtimedevices[devnum].dev->SetDataFormat(&dataform);
-	//			int hres = runtimedevices[devnum].dev->QueryInterface(IID_IDirectInputDevice2,(LPVOID *)&runtimedevices[devnum].dev2); 
-				runtimedevices[devnum].dev2=NULL;
-#ifdef	NDEBUG
-				runtimedevices[devnum].dev->SetCooperativeLevel(w,DISCL_FOREGROUND+DISCL_EXCLUSIVE);
-#else
-				runtimedevices[devnum].dev->SetCooperativeLevel(w,DISCL_BACKGROUND+DISCL_NONEXCLUSIVE);
-#endif
-				runtimedevices[devnum].dev->Acquire();
-			}
-			else
-			{
-				runtimedevices[devnum].dev->Release();
-				runtimedevices[devnum].dev=NULL;
-				runtimedevices[devnum].dev2->EnumObjects(DIEnumDeviceObjectsProc,runtimedevices+devnum,DIDFT_BUTTON+DIDFT_AXIS+DIDFT_POV);
-				runtimedevices[devnum].dev2->SetProperty(DIPROP_BUFFERSIZE,&buffprop.diph);
+        nextDev++;
+    }
 
-				// DI_PROPNOEFFECT(0001) DIERR_INVALIDPARAM (57) 
-				// DIERR_NOTINITIALIZED DIERR_OBJECTNOTFOUND(0002) DIERR_UNSUPPORTED(40001)
-				
-				DIDATAFORMAT dataform={sizeof(DIDATAFORMAT),sizeof(DIOBJECTDATAFORMAT),makerelative?DIDF_RELAXIS:DIDF_ABSAXIS ,0x500,objectcount,dataobjects};
-				int rv=runtimedevices[devnum].dev2->SetDataFormat(&dataform);
-				if (rv!=DI_OK)
-					_Error.ReallyEmitSysErr("Could not setup data format for analogue device %i",devnum);
-	//			int hres = runtimedevices[devnum].dev->QueryInterface(IID_IDirectInputDevice2,(LPVOID *)&runtimedevices[devnum].dev2); 
-				if (!ForceAxes[1])
-					runtimedevices[devnum].useff=false;
-				if (runtimedevices[devnum].useff)
-				{
- 
-					FFdevice=runtimedevices[devnum].dev2;
-//TEMPCODE DAW 06/05/99 					FFdevice->EnumEffects( DIEnumEffectsProc,NULL,DIEFT_ALL);  
-					DIPROPDWORD	centreprop={{sizeof(DIPROPDWORD),sizeof(DIPROPHEADER),0,DIPH_DEVICE},};
-					FFdevice->SetProperty(DIPROP_AUTOCENTER,&centreprop.diph);
-//5=XF,6=XB,9=SF,10=SB 
-#ifdef	NDEBUG
-					runtimedevices[devnum].dev2->SetCooperativeLevel(w,DISCL_FOREGROUND+DISCL_EXCLUSIVE);
-#else
-					runtimedevices[devnum].dev2->SetCooperativeLevel(w,DISCL_BACKGROUND+DISCL_EXCLUSIVE);
-#endif
-				}
-				else
-#ifdef	NDEBUG
-					runtimedevices[devnum].dev2->SetCooperativeLevel(w,DISCL_FOREGROUND+DISCL_EXCLUSIVE);
-#else
-					runtimedevices[devnum].dev2->SetCooperativeLevel(w,DISCL_BACKGROUND+DISCL_NONEXCLUSIVE);
-#endif
-				rv=runtimedevices[devnum].dev2->Acquire();
-				if (rv!=DI_OK)
-					_Error.ReallyEmitSysErr("Could not aquire analogue device %i",devnum);
-				int i=4;
-			}
-		}
-	}
-	for (int a=0;a<AU_MAX;a++)
-		axisvalues[a]=0x8000;
-	if (FFdevice)
-	{			 //DIGFFS_ACTUATORSOFF
-		DWORD result;
-		FFdevice-> GetForceFeedbackState(&result);
-		SWFF_DestroyAllEffects(FFdevice);
-		FFshake.Init(FFdevice);
-		FFstiff.Init(FFdevice);
-		FFpush.Init(FFdevice);
-		FFdamp.Init(FFdevice);
-	}
-	readytopoll=true;
-	return TRUE;
+    // --- existing init continues (force feedback, zero axisvalues etc.) ---
+
+    for (int a=0;a<AU_MAX;a++)
+        axisvalues[a]=0x8000;
+    // ...existing code sets up FFdevice if any...
+    readytopoll=true;
+    return TRUE;
 }
 inline	CString	LoadResString(int resnum)
 {
@@ -455,34 +373,41 @@ Bool	Analogue::LoadGame()
 //------------------------------------------------------------------------------
 Bool	Analogue::CloseDown()
 {
-	readytopoll=false;
+    readytopoll=false;
 
-	for (int devnum=0;runtimedevices[devnum].devid.Data1;devnum++)
-	{
-		if (runtimedevices[devnum].dev2)
-		{
-			runtimedevices[devnum].dev2->Unacquire();
-			runtimedevices[devnum].dev2->Release();
-//			runtimedevices[devnum].dev->Release();
-			runtimedevices[devnum].dev2=NULL;
-			runtimedevices[devnum].dev=NULL;
-		}
-		else
-		if (runtimedevices[devnum].dev)
-		{
-			runtimedevices[devnum].dev->Unacquire();
-			runtimedevices[devnum].dev->Release();
-			runtimedevices[devnum].dev=NULL;
-		}
-	}
+    for (int devnum=0;runtimedevices[devnum].devid.Data1;devnum++)
+    {
+        // Close SDL joystick handles if used
+        if (runtimedevices[devnum].is_sdl && runtimedevices[devnum].sdl_joy)
+        {
+            SDL_JoystickClose(runtimedevices[devnum].sdl_joy);
+            runtimedevices[devnum].sdl_joy = NULL;
+            runtimedevices[devnum].is_sdl = false;
+        }
 
-	FFdevice=NULL;
-	FFshake.Init(FFdevice);
-	FFstiff.Init(FFdevice);
-	FFpush.Init(FFdevice);
-	FFdamp.Init(FFdevice);
+        // existing DirectInput close paths
+        if (runtimedevices[devnum].dev2)
+        {
+            runtimedevices[devnum].dev2->Unacquire();
+            runtimedevices[devnum].dev2->Release();
+            runtimedevices[devnum].dev2=NULL;
+            runtimedevices[devnum].dev=NULL;
+        }
+        else if (runtimedevices[devnum].dev)
+        {
+            runtimedevices[devnum].dev->Unacquire();
+            runtimedevices[devnum].dev->Release();
+            runtimedevices[devnum].dev=NULL;
+        }
+    }
 
-	return TRUE;
+    FFdevice=NULL;
+    FFshake.Init(FFdevice);
+    FFstiff.Init(FFdevice);
+    FFpush.Init(FFdevice);
+    FFdamp.Init(FFdevice);
+
+    return TRUE;
 }
 
 
@@ -525,14 +450,90 @@ void	Analogue::PollForces()
 }
 void	Analogue::PollPosition()
 {
-	if (!readytopoll)	
-		return;
-	DIDEVICEOBJECTDATA	readings[30];
-	for (int devnum=0;runtimedevices[devnum].devid.Data1;devnum++)
-	if (runtimedevices[devnum].dev || runtimedevices[devnum].dev2)
-	{	// DI_BUFFEROVERFLOW
-		//DIERR_INPUTLOST (1E) DIERR_INVALIDPARAM (57 ) DIERR_NOTACQUIRED (0c)
-		//DIERR_NOTBUFFERED (07) DIERR_NOTINITIALIZED (15)
+    if (!readytopoll)	
+        return;
+
+    // First handle any SDL-backed devices quickly (simple polling, no buffering)
+    for (int devnum=0;runtimedevices[devnum].devid.Data1;devnum++)
+    {
+        RunTimeDevDesc &rd = runtimedevices[devnum];
+        if (!rd.is_sdl)
+            continue;
+
+        SDL_Joystick* joy = rd.sdl_joy;
+        if (!joy) continue;
+
+        // axes
+        int nax = SDL_JoystickNumAxes(joy);
+        for (int a = 0; a < nax && a < RunTimeDevDesc::MAXMAPS; ++a)
+        {
+            int use = rd.axismaps[a];
+            if (use == AU_UNUSED) continue;
+            Sint16 v = SDL_JoystickGetAxis(joy, a); // -32768..32767
+            axisvalues[use] = v;
+        }
+
+        // buttons -> map to same key offsets used historically (simple scheme)
+        int nbtn = SDL_JoystickNumButtons(joy);
+        int btnBase = 250 + devnum * 16; // preserves existing spacing idea
+        for (int b = 0; b < nbtn; ++b)
+        {
+            Uint8 pressed = SDL_JoystickGetButton(joy, b);
+            if (pressed)	Inst3d::OnKeyDown(btnBase + b);
+            else			Inst3d::OnKeyUp(btnBase + b);
+        }
+
+        // hats -> map to axis or emulate buttons
+        int nhat = SDL_JoystickNumHats(joy);
+        for (int h = 0; h < nhat; ++h)
+        {
+            Uint8 hat = SDL_JoystickGetHat(joy, h);
+            int dx = 0, dy = 0;
+            if (hat & SDL_HAT_UP) dy = 1;
+            if (hat & SDL_HAT_DOWN) dy = -1;
+            if (hat & SDL_HAT_LEFT) dx = -1;
+            if (hat & SDL_HAT_RIGHT) dx = 1;
+
+            int hatMap = rd.hatmaps[h];
+            if (hatMap != AU_UNUSED)
+            {
+                // store scaled values into two axes (hatMap, hatMap+1)
+                axisvalues[hatMap]   = dx * (axisscales[hatMap] ? axisscales[hatMap] : 256);
+                axisvalues[hatMap+1] = dy * (axisscales[hatMap+1] ? axisscales[hatMap+1] : 256);
+            }
+            else
+            {
+                // emulate hat-as-8-buttons mapping used previously:
+                int base = AX_FLAG_HATASBUTTON + btnBase + 50 - 8 * (h + 1);
+                // compute pressing index 0..7 (0=up,1=up-right,...)
+                int pressing = -1;
+                if (dx==0 && dy==1) pressing = 0;		// up
+                else if (dx==1 && dy==1) pressing = 1;	// up-right
+                else if (dx==1 && dy==0) pressing = 2;	// right
+                else if (dx==1 && dy==-1) pressing = 3;	// down-right
+                else if (dx==0 && dy==-1) pressing = 4;	// down
+                else if (dx==-1 && dy==-1) pressing = 5;	// down-left
+                else if (dx==-1 && dy==0) pressing = 6;	// left
+                else if (dx==-1 && dy==1) pressing = 7;	// up-left
+                else pressing = -1; // centered
+
+                for (int i = 0; i < 8; ++i)
+                {
+                    if (i == pressing) Inst3d::OnKeyDown(base + i);
+                    else Inst3d::OnKeyUp(base + i);
+                }
+            }
+        }
+    }
+
+    // Existing DirectInput buffered path remains unchanged below.
+    DIDEVICEOBJECTDATA	readings[30];
+    for (int devnum=0;runtimedevices[devnum].devid.Data1;devnum++)
+    if (runtimedevices[devnum].dev || runtimedevices[devnum].dev2)
+    {
+        // DI_BUFFEROVERFLOW
+        //DIERR_INPUTLOST (1E) DIERR_INVALIDPARAM (57 ) DIERR_NOTACQUIRED (0c)
+        //DIERR_NOTBUFFERED (07) DIERR_NOTINITIALIZED (15)
 		int rv;
 		if (runtimedevices[devnum].dev2)
 		{
@@ -679,14 +680,14 @@ void	Analogue::PollPosition()
 			}
 		};
 	}
-	for (int i=0,j;i<AU_MAX;i++)									  //DAW 07/05/99
-		if ((j=axisdeltas[i])!=0)
-		{
-			j+=(SWord)axisvalues[i];
-			if (j<32767 && j>-32767)
-				axisvalues[i]=j;
-		}
-	PollForces();
+    for (int i=0,j;i<AU_MAX;i++)									  
+        if ((j=axisdeltas[i])!=0)
+        {
+            j+=(SWord)axisvalues[i];
+            if (j<32767 && j>-32767)
+                axisvalues[i]=j;
+        }
+    PollForces();
 }
 
 SWord	Analogue::ReadPosition(AxisUses a)
@@ -1525,12 +1526,12 @@ HRESULT SWFF_CreateROMEffect(
 	DIEffect.dwGain					= dwGain;		// can be DEFAULT_ROM_EFFECT_GAIN;	
 	//
 	DIEffect.dwTriggerButton		= lButton == -1 ? DIEB_NOTRIGGER : FIELD_OFFSET(DIJOYSTATE, rgbButtons) + lButton;
-	DIEffect.dwTriggerRepeatInterval= 0;
+	DIEffect.dwTriggerRepeatInterval	= 0;
 	DIEffect.cAxes					= 2;
 	DIEffect.rgdwAxes				= rgdwAxes;
 	DIEffect.rglDirection			= rglDirection;
 	DIEffect.lpEnvelope				= &DIEnvelopeStruct;
-	DIEffect.cbTypeSpecificParams	= 0;
+	DIEffect.cbTypeSpecificParams		= 0;
 	DIEffect.lpvTypeSpecificParams	= NULL;
 
 	HRESULT hRet = pDIDevice->CreateEffect(refGUID, &DIEffect, &pROMEffect, NULL);

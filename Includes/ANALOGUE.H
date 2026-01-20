@@ -14,6 +14,7 @@
 #include	"BITFIELD.H"
 #include	"HARDPASM.H"
 #include	"KEYTEST.H"
+#include <SDL2/SDL.h> // add this near other includes
 
 #include "dinput_stub.h" //RERUN
 
@@ -88,6 +89,10 @@ struct	RunTimeDevDesc
 	char	hatmaps[MAXMAPS];
 	char	prevhatbuts[MAXMAPS];
 
+// Add SDL-friendly fields (minimal)
+    int		sdl_index;    // index passed to SDL_JoystickOpen
+    SDL_Joystick* sdl_joy; // open SDL joystick handle (or NULL)
+    bool	is_sdl;       // true if this entry is backed by SDL joystick
 };
 
 //------------------------------------------------------------------------------
