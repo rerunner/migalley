@@ -48,6 +48,14 @@ The Main UI is not yet complete. It allows to start Hot Shot, Quick Mission, Cam
 
 The project now relies on 32 bits SDL2 & GTK2 dependencies to build and run.
 
+## Some status videos
+[![Selecting Quick Mission]()](https://github.com/user-attachments/assets/c8b1d0c6-a937-49f9-b482-3a584d59f462)
+
+[![HotShots Start]()](https://github.com/user-attachments/assets/7ef28ce2-03be-4202-b602-619b0a85203d)
+
+[![In-Flight Menu]()](https://github.com/user-attachments/assets/022d6f0e-3e7d-4ec2-b3dc-a4c88da8168d)
+
+
 # Game description
 Set during the Korean War, Mig Alley is an interactive campaign-based flight simulation, with the option of instant action in minicampaigns, single historical missions, and head-to-head play. Add to this the astounding graphics, stunning landscapes, accurate flight models, and the world's largest jet-to-jet dogfights, and you have one the best games of next year on your hands.
 
