@@ -755,6 +755,8 @@ DES direct_draw::~direct_draw()
 	RELEASE_RENDERER(lpDD2, dderrval);
 
 	RELEASE_RENDERER(lpDD, dderrval);
+
+	Vulkan_Shutdown(); // RERUN
 }
 
 //------------------------------------------------------------------------------

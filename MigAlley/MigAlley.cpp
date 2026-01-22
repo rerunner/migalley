@@ -235,7 +235,6 @@ int miginit()
 	Master_3d.SdlWinInst = win;
 	Master_3d.SdlMigTexture = NULL;
 
-	SDL_SetRelativeMouseMode(SDL_TRUE);
 	//SDL_SetWindowGrab(win, SDL_TRUE);
 
 	SDL_SysWMinfo SysInfo; //Will hold our MigWindow information
@@ -407,6 +406,7 @@ int migfly()
 
 	SDL_Event event;
 	bool running = true;
+    SDL_SetRelativeMouseMode(SDL_TRUE);    
 	while (running)
 	{
 		while (SDL_PollEvent(&event))
@@ -426,7 +426,7 @@ int migfly()
 			running = false;
 		}
 	}
-
+	SDL_SetRelativeMouseMode(SDL_FALSE);
 	migdestroy();
 	return 0;
 }

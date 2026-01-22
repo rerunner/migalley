@@ -1117,3 +1117,161 @@ bool direct_draw::Vulkan_CreatePipeline()
 
     return true;
 }
+
+void direct_draw::Vulkan_Shutdown()
+{
+    // Best-effort tear-down of Vulkan resources in reverse order of creation.
+    // Many variables (vkDevice, vkInstance, vkSurface, etc.) are globals used in this file.
+    if (vkDevice != VK_NULL_HANDLE) {
+        vkDeviceWaitIdle(vkDevice);
+    }
+
+    // Destroy sampler/descriptor resources
+    if (vkDevice != VK_NULL_HANDLE) {
+        if (fbSampler != VK_NULL_HANDLE) {
+            vkDestroySampler(vkDevice, fbSampler, nullptr);
+            fbSampler = VK_NULL_HANDLE;
+        }
+        if (fbDescPool != VK_NULL_HANDLE) {
+            vkDestroyDescriptorPool(vkDevice, fbDescPool, nullptr);
+            fbDescPool = VK_NULL_HANDLE;
+        }
+        if (descLayout != VK_NULL_HANDLE) {
+            vkDestroyDescriptorSetLayout(vkDevice, descLayout, nullptr);
+            descLayout = VK_NULL_HANDLE;
+        }
+    }
+
+    // Image + image view + memory for the sampled back image
+    if (vkDevice != VK_NULL_HANDLE) {
+        if (fbImageView != VK_NULL_HANDLE) {
+            vkDestroyImageView(vkDevice, fbImageView, nullptr);
+            fbImageView = VK_NULL_HANDLE;
+        }
+        if (fbImage != VK_NULL_HANDLE) {
+            vkDestroyImage(vkDevice, fbImage, nullptr);
+            fbImage = VK_NULL_HANDLE;
+        }
+        if (fbMemory != VK_NULL_HANDLE) {
+            vkFreeMemory(vkDevice, fbMemory, nullptr);
+            fbMemory = VK_NULL_HANDLE;
+        }
+    }
+
+    // Staging buffer: unmap then free
+    if (vkDevice != VK_NULL_HANDLE) {
+        if (stagingPtr && stagingMem != VK_NULL_HANDLE) {
+            vkUnmapMemory(vkDevice, stagingMem);
+            stagingPtr = nullptr;
+        }
+        if (stagingBuf != VK_NULL_HANDLE) {
+            vkDestroyBuffer(vkDevice, stagingBuf, nullptr);
+            stagingBuf = VK_NULL_HANDLE;
+        }
+        if (stagingMem != VK_NULL_HANDLE) {
+            vkFreeMemory(vkDevice, stagingMem, nullptr);
+            stagingMem = VK_NULL_HANDLE;
+        }
+    } else {
+        // If no device handle but stagingPtr set, clear host pointer to avoid stale pointer
+        stagingPtr = nullptr;
+    }
+
+    // Pipeline / render pass / pipeline layout
+    if (vkDevice != VK_NULL_HANDLE) {
+        if (pipeline != VK_NULL_HANDLE) {
+            vkDestroyPipeline(vkDevice, pipeline, nullptr);
+            pipeline = VK_NULL_HANDLE;
+        }
+        if (pipelineLayout != VK_NULL_HANDLE) {
+            vkDestroyPipelineLayout(vkDevice, pipelineLayout, nullptr);
+            pipelineLayout = VK_NULL_HANDLE;
+        }
+        if (renderPass != VK_NULL_HANDLE) {
+            vkDestroyRenderPass(vkDevice, renderPass, nullptr);
+            renderPass = VK_NULL_HANDLE;
+        }
+    }
+
+    // Framebuffers
+    if (vkDevice != VK_NULL_HANDLE) {
+        for (auto fb : framebuffers) {
+            if (fb != VK_NULL_HANDLE) {
+                vkDestroyFramebuffer(vkDevice, fb, nullptr);
+            }
+        }
+        framebuffers.clear();
+    }
+
+    // Swapchain image views and arrays
+    if (vkDevice != VK_NULL_HANDLE) {
+        if (swapViews) {
+            for (uint32_t i = 0; i < swapCount; ++i) {
+                if (swapViews[i] != VK_NULL_HANDLE) {
+                    vkDestroyImageView(vkDevice, swapViews[i], nullptr);
+                }
+            }
+            delete[] swapViews;
+            swapViews = nullptr;
+        }
+        if (!swapImageViews.empty()) { // handle whichever array name is used elsewhere
+            for (VkImageView v : swapImageViews) {
+                if (v != VK_NULL_HANDLE) vkDestroyImageView(vkDevice, v, nullptr);
+            }
+            swapImageViews.clear();
+        }
+    }
+
+    // Swapchain itself
+    if (vkDevice != VK_NULL_HANDLE && vkSwapchain != VK_NULL_HANDLE) {
+        vkDestroySwapchainKHR(vkDevice, vkSwapchain, nullptr);
+        vkSwapchain = VK_NULL_HANDLE;
+    }
+
+    // Command pool, semaphores, fence
+    if (vkDevice != VK_NULL_HANDLE) {
+        if (cmdPool != VK_NULL_HANDLE) {
+            vkDestroyCommandPool(vkDevice, cmdPool, nullptr);
+            cmdPool = VK_NULL_HANDLE;
+        }
+        if (semAcquire != VK_NULL_HANDLE) {
+            vkDestroySemaphore(vkDevice, semAcquire, nullptr);
+            semAcquire = VK_NULL_HANDLE;
+        }
+        if (semPresent != VK_NULL_HANDLE) {
+            vkDestroySemaphore(vkDevice, semPresent, nullptr);
+            semPresent = VK_NULL_HANDLE;
+        }
+        if (fence != VK_NULL_HANDLE) {
+            vkDestroyFence(vkDevice, fence, nullptr);
+            fence = VK_NULL_HANDLE;
+        }
+    }
+
+    // Destroy device
+    if (vkDevice != VK_NULL_HANDLE) {
+        vkDestroyDevice(vkDevice, nullptr);
+        vkDevice = VK_NULL_HANDLE;
+    }
+
+    // Destroy surface and instance
+    if (vkInstance != VK_NULL_HANDLE) {
+        if (vkSurface != VK_NULL_HANDLE) {
+            vkDestroySurfaceKHR(vkInstance, vkSurface, nullptr);
+            vkSurface = VK_NULL_HANDLE;
+        }
+        vkDestroyInstance(vkInstance, nullptr);
+        vkInstance = VK_NULL_HANDLE;
+    }
+
+    // free swapImages array (host-side array allocated with new[])
+    if (swapImages) {
+        delete[] swapImages;
+        swapImages = nullptr;
+    }
+
+    // reset a couple of flags / pointers
+    stagingMemoryCoherent = false;
+    fbDescSet = VK_NULL_HANDLE;
+
+}

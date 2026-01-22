@@ -62,50 +62,50 @@ class direct_draw
 
 	//////////////////////// VULKAN
 
-	VkInstance        vkInstance;
-	VkPhysicalDevice  vkPhys;
-	VkDevice          vkDevice;
-	VkQueue           vkQueue;
-	uint32_t          vkQueueFamily;
+	VkInstance        vkInstance = VK_NULL_HANDLE;
+	VkPhysicalDevice  vkPhys = VK_NULL_HANDLE;
+	VkDevice          vkDevice = VK_NULL_HANDLE;
+	VkQueue           vkQueue = VK_NULL_HANDLE;
+	uint32_t          vkQueueFamily = 0;
 
-	VkSurfaceKHR      vkSurface;
-	VkSwapchainKHR    vkSwapchain;
-	VkExtent2D        vkExtent;
-	VkFormat          vkSwapFormat;
+	VkSurfaceKHR      vkSurface = VK_NULL_HANDLE;
+	VkSwapchainKHR    vkSwapchain = VK_NULL_HANDLE;
+	VkExtent2D        vkExtent = {0,0};
+	VkFormat          vkSwapFormat = VK_FORMAT_UNDEFINED;
 
-	VkImage*          swapImages;
-	VkImageView*      swapViews;
-	std::vector<VkImageView>    swapImageViews;
-	uint32_t          swapCount;
+	VkImage*          swapImages = nullptr;
+	VkImageView*      swapViews = nullptr;
+	std::vector<VkImageView>    swapImageViews {};
+	uint32_t          swapCount = 0;
 
-	VkRenderPass      renderPass;
-	VkPipelineLayout  pipelineLayout;
-	VkPipeline        pipeline;
+	VkRenderPass      renderPass = VK_NULL_HANDLE;
+	VkPipelineLayout  pipelineLayout = VK_NULL_HANDLE;
+	VkPipeline        pipeline = VK_NULL_HANDLE;
 
-	VkCommandPool     cmdPool;
-	VkCommandBuffer   cmd;
+	VkCommandPool     cmdPool = VK_NULL_HANDLE;
+	VkCommandBuffer   cmd = VK_NULL_HANDLE;
 
-	VkSemaphore       semAcquire; // image available
-	VkSemaphore       semPresent; // render finished
-	VkFence           fence;
+	VkSemaphore       semAcquire = VK_NULL_HANDLE; // image available
+	VkSemaphore       semPresent = VK_NULL_HANDLE; // render finished
+	VkFence           fence = VK_NULL_HANDLE;
 
 	/* Game framebuffer */
-	VkImage           fbImage;
-	VkDeviceMemory    fbMemory;
-	VkImageView       fbView;
-	VkSampler         fbSampler;
+	VkImage           fbImage = VK_NULL_HANDLE;
+	VkDeviceMemory    fbMemory = VK_NULL_HANDLE;
+	VkImageView       fbView = VK_NULL_HANDLE;
+	VkSampler         fbSampler = VK_NULL_HANDLE;
 
 	/* Upload buffer */
-	VkBuffer          stagingBuf;
-	VkDeviceMemory    stagingMem;
-	void*             stagingPtr;
+	VkBuffer          stagingBuf = VK_NULL_HANDLE;
+	VkDeviceMemory    stagingMem = VK_NULL_HANDLE;
+	void*             stagingPtr = nullptr;
 
 	/* Descriptor */
-	VkDescriptorSetLayout descLayout;
-	VkDescriptorPool      descPool;
-	VkDescriptorSet       descSet;
+	VkDescriptorSetLayout descLayout = VK_NULL_HANDLE;
+	VkDescriptorPool      descPool = VK_NULL_HANDLE;
+	VkDescriptorSet       descSet = VK_NULL_HANDLE;
 
-	int g_winWidth, g_winHeight;
+	int g_winWidth = 0, g_winHeight = 0;
 
 	std::vector<VkFramebuffer> framebuffers;
 
