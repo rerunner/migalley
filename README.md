@@ -8,38 +8,35 @@ A *native* Linux version of Rowan's MigAlley.
 
 # The .plan
 
-1. take the original Mig Alley source code from Rowan software.
+- [x] take the original Mig Alley source code from Rowan software.
 
-2. create a CMake edition build system from scratch. 
+- [x] create a CMake edition build system from scratch. 
 
-3. Remove dependencies on Windows, MFC and DirectX/play/input libraries. LARGE changes are needed to accomplish this, and it will disable all UI related code, including the dynamic campaign map/planning tool.
+- [x] Remove dependencies on Windows, MFC and DirectX/play/input libraries. LARGE changes are needed to accomplish this, and it will disable all UI related code, including the dynamic campaign map/planning tool.
 
-4. Replace DirectDraw surfaces with SDL2 surfaces, run 3d world in non directx "software" mode
+- [x] Replace DirectDraw surfaces with SDL2 surfaces, run 3d world in non directx "software" mode
 
-5. Replace Miles Sound System with SDL2 audio mixer. Some features will be lost until a better sound lib is identified.
+- [x] Replace Miles Sound System with SDL2 audio mixer.
 
-6. Replace DirectInput keyboard code with SDL2 keyboard code.
+- [x] Replace DirectInput keyboard code with SDL2 keyboard code.
 
-7. Create a temporary simple portable UI, as the old UI was all MFC or WPC stuff. 
+- [x] Create a temporary simple portable UI, as the old UI was all MFC or WPC stuff. 
 
-8. Add Vulkan staging and pipeline as alternative to SDL Renderer. Include a simple vulkan shader with CRT effect.
+- [x] Add Vulkan staging and pipeline as alternative to SDL Renderer. Include a simple vulkan shader with CRT effect.
 
-9. Activate in-flight Map and radio messages menu.
+- [x] Activate in-flight Map and radio messages menu.
 
-10. Create a Joystick port from DirectInput to SDL2.
+- [x] Create a Joystick port from DirectInput to SDL2.
 
-10. Recreate the full UI, activating all menus, maps, campaign planner. This is going to be a lot of work.
+- [ ] Recreate the full UI, activating all menus, maps, campaign planner. This is going to be a lot of work.
 
-11. See what is next (e.g. multiplayer, full vulkan replacement, etc).
+- [ ] See what is next (e.g. multiplayer, full vulkan replacement, etc).
 
 
 # Status
-*Step 10 completed* 
-
-The core game is working, tested using Manjaro Linux. 
-It currently uses:
+The core game can be played, tested using Manjaro Linux. It currently uses:
 - SDL2 for the 3D window management and graphics surfaces. 
-- Vulkan (including shaders) for the fixed pipeline and display inside the SDL window.
+- Vulkan (including shaders) for the staging buffers, fixed pipeline and display inside the SDL window.
 - SDL Mixer for the audio
 - SDL TTF for the in-game fonts+text.
 - SDL input for mouse and joystick
