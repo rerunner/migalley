@@ -459,10 +459,8 @@ void COverlay::DrawInfoBar()
 
 	fIsWide=IsWide(physicalWidth);
 
-	if (!fIsWide)
-		box_height = 10;
-	else
-		box_height = 16; // RERUN was 18;
+	if (!fIsWide)	box_height=10;
+	else			box_height=18;
 
 	longDistUnitStr=LdStr(Save_Data.dist.longabbr);
 	shortDistUnitStr=LdStr(Save_Data.dist.mediumabbr);
@@ -559,8 +557,6 @@ void COverlay::DrawTopText()
 	//flight model code sets speed=>mph & height=>ft
 	SLong speed2,altitude2; float speedey;
 
-	SDL_Color color = { 255, 255, 255 }; //RERUN
-
 	altitude2=(altitude*305)/Save_Data.alt.mediummm;
 	speedey = float(speed) * Save_Data.speed.mmpcs2perhr;	//CSB 23/06/99	
 	speed2=SLong(speedey);
@@ -569,10 +565,9 @@ void COverlay::DrawTopText()
 	const SLong digitWidth=StrPixelLen2((char*)&"8");
 
 	char temp[128];
-	char tempTotal[255]; //RERUN
 	SWord xpos=0;
 	SWord bupxpos=xpos;
-	sprintf(tempTotal,"%s: %3d%s ",OSpeedText.text,speed2,speedUnitStr);
+	sprintf(temp,"%s: %3d%s",OSpeedText.text,speed2,speedUnitStr);
 	PrintAt2(xpos,TOPLINE_Y,temp);
 
 	xpos=bupxpos+StrPixelLen2(OSpeedText.text)+3*digitWidth+StrPixelLen2(speedUnitStr)+doubleSpace;
@@ -615,16 +610,12 @@ inline bool COverlay::TestMessageText()
 void COverlay::DrawMessageText()
 {
 	SWord xpos=MESSAGE_X;
-	SDL_Color color = { 255, 255, 255 };
-
 	if (!otherText->IsEmpty())
 	{
 		PrintAt2(xpos,TOPLINE_Y2,const_cast<char*>(LPCTSTR(otherText[0])));
 	}
 	else if (!_MsgBuffer.nothingatall)
 	{
-		char * theMess0 = const_cast<char*>(LPCTSTR(msgText[0]));
-		
 		if (!msgText[1].IsEmpty())
 		{
 			PrintAt2(xpos,TOPLINE_Y3,const_cast<char*>(LPCTSTR(msgText[0])));
