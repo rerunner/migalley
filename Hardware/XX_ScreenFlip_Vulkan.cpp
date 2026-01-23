@@ -673,31 +673,6 @@ void direct_draw::XX_ScreenFlip_Vulkan(SDL_Surface* ddsBack)
             }
         }
 
-        {
-            for (const auto& msg : g_overlayQueue) {
-                SDL_Surface* surf = TTF_RenderText_Solid(
-                    sdlTextFont,
-                    msg.text.c_str(),
-                    SDL_Color{255,255,255,255}
-                );
-                if (!surf) continue;
-
-                blitSurfaceToStaging(
-                    surf,
-                    msg.x,
-                    msg.y,
-                    reinterpret_cast<uint8_t*>(stagingPtr),
-                    scaleX,
-                    scaleY,
-                    vkExtent
-                );
-
-                SafeFreeSurface(surf);
-            }
-
-            g_overlayQueue.clear(); // ready for next frame
-        }
-
         // --- Flush if non-coherent ---
         if (!stagingMemoryCoherent) {
             VkMappedMemoryRange range{ VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE };

@@ -44,7 +44,6 @@ struct OverlayMsg {
     int y;
     std::string text;
 };
-extern std::vector<OverlayMsg> g_overlayQueue;
 
 class direct_draw;
 

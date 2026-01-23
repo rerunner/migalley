@@ -967,9 +967,6 @@ void COverlay::RenderIcon(ICON& icn,bool clicked)
 //Author		Paul    
 //Date			Thu 4 Jun 1998
 //------------------------------------------------------------------------------
-#include "WIN3D.H"
-std::vector<OverlayMsg> g_overlayQueue;
-
 void COverlay::PrintAt(SWord x,SWord y,char* str)
 {
 	// Dead
@@ -979,7 +976,6 @@ void COverlay::PrintAt2(SWord& x,SWord& y, const char* str)
 {
  	if (str)													//RJS 05Dec00
  	{
-#if 0 // RERUN
 		const unsigned char* ustr=(const unsigned char*)str;
 
 		while (*ustr)
@@ -987,10 +983,6 @@ void COverlay::PrintAt2(SWord& x,SWord& y, const char* str)
 			PutC3(x,y,_mbsnextc(ustr));
 			ustr=_mbsinc(ustr);
 		}
-#else
-	// RERUN - Queue overlay text for later rendering
-	g_overlayQueue.push_back(OverlayMsg{ x, y, str });
-#endif
 	}
 }
 
@@ -1957,9 +1949,6 @@ bool COverlay::UpdateMousePos()
 //------------------------------------------------------------------------------
 void COverlay::LoaderScreen(int stage)
 {
-	//RERUN if (Save_Data.fSoftware)
-	//RERUN return;
-
 	int realStage,subStage;
 	realStage=stage>>8;
 	subStage=stage&0xFF;
@@ -2002,7 +1991,7 @@ void COverlay::LoaderScreen(int stage)
 	pw->DoSmokedGlassBox(boxX,boxY,boxWidth,boxHeight,0xFFFF0000);
 	if (!Save_Data.fSoftware)	pw->DoSetFontColour(0xFF000000);
 	else						POLYGON.SetFontColour(BLACK);
-	PrintAt2(textx,texty,str);
+	if (!Save_Data.fSoftware)	PrintAt2(textx,texty,str); // RERUN, software mode will crash here
 	pw->EndScene();
 	if (doneonce==1)
 	{
@@ -2017,8 +2006,8 @@ void COverlay::LoaderScreen(int stage)
 
 void COverlay::CommsWaitingScreen(int stage)
 {
-	//if (Save_Data.fSoftware)
-	//	return;
+	if (Save_Data.fSoftware)
+		return;
 
 	int realStage,subStage;
 	realStage=0;
@@ -7101,16 +7090,171 @@ static ULong vsets[16]=
 	0xffff0000,0xffff00ff,0xffffff00,0xffffffff
 };
 
-
 void	ImageMap_Desc::MakeChar(int cx, int cy, int	uChar)
 {
-// RERUN DEAD
+#if defined(__MSVC__)
+	int ix=(cx*11) + 1;// + 4;
+	int iy=(cy*14) + 1;//4;
+	UWord theglyph[]={(uChar>>8)+(uChar<<8),0};
+
+	GLYPHMETRICS gm={0};
+//	MAT2		mat2={{51493,0},{0,0},{0,0},{60075,0}};
+	MAT2		mat2={{46811,0},{0,0},{0,0},{60075,0}};
+
+	enum	{MAX_BYTES_GLYPH=512};
+
+	assert(GetGlyphOutline(	  g_OffScreenDC,             // handle to DC
+							  uChar,          // character to query
+							  GGO_GRAY8_BITMAP,//GGO_GRAY8_BITMAP,        // data format
+							  &gm, // glyph metrics
+							  0,      // size of data buffer
+							  NULL,    // data buffer
+							  &mat2   // transformation matrix
+							) < MAX_BYTES_GLYPH);
+
+	char buffer[MAX_BYTES_GLYPH];
+
+	DWORD ggo2= GetGlyphOutline(
+	  g_OffScreenDC,             // handle to DC
+	  uChar,          // character to query
+	  GGO_GRAY8_BITMAP,        // data format L
+	  &gm, // glyph metrics
+	  MAX_BYTES_GLYPH,      // size of data buffer
+	  buffer,    // data buffer
+	  &mat2   // transformation matrix
+	);
+	
+	int longswide=(gm.gmBlackBoxX+3)>>2;
+	ULong* src=(ULong*)buffer;
+	ULong* trg=(ULong*)(alpha+ix+iy*128);
+	int postlongsdelta=0;
+	UByte failcode=0;
+	if (gm.gmBlackBoxX>10)
+	{
+		failcode=0x40+gm.gmBlackBoxX;
+		postlongsdelta=longswide-3;
+		longswide=3;
+	}
+	//gm.gmptGlyphOrigin.y is where on the glyph the baseline is drawn.
+	//I want the baseline at row 11/16
+	int starty=11-gm.gmptGlyphOrigin.y;
+	if (starty<0)
+	{
+		failcode=0x20+starty;
+		starty=0;
+	}
+	if (starty>13)
+	{
+		failcode=0x20+starty;
+		starty=13;
+	}
+	int gmBlackBoxY=gm.gmBlackBoxY+starty;
+	if (gmBlackBoxY>13)
+	{
+		failcode=0x50+gmBlackBoxY;
+		gmBlackBoxY=13;
+	}
+
+	body[uChar&0x7F] = gm.gmCellIncX + 1;
+	alpha[uChar&0x7F] = failcode;
+	{//assume(longswide>=0 && longswide<=4);
+		int x,y;
+		for (y=0;y<starty;y++)
+		{
+				*trg++=0;
+				*trg++=0;
+				*trg++=0;
+				trg+=29;
+		}
+		for (;y<gmBlackBoxY;y++)
+		{
+			for (x=0;x<longswide;x++)
+			{
+				ULong v=*src++;
+				ULong t=v&0x40404040;
+				v-=t;
+//converting byte seperatyed flags to nibble.
+				ULong u=t>>14;
+				t+=u;
+				u=t>>7;
+				t+=u;
+//deleting crap
+				t&=0x3C0;
+//putting nibble in right place
+				t>>=6;
+				v<<=2;
+				v|=vsets[t];//hoping optimiser will reduce shift count.
+				*trg++=v;
+			}
+			src+=postlongsdelta;
+			for (;x<3;x++)
+			{
+				*trg++=0;
+			}
+			trg+=29;
+		}
+		for (;y<14;y++)
+		{
+				*trg++=0;
+				*trg++=0;
+				*trg++=0;
+				trg+=29;
+		}
+
+		assert((int(trg)-int(alpha))<=(128*128)+29);
+	}
+#else
+    int ix = (cx * 11) + 1;
+    int iy = (cy * 14) + 1;
+
+	TTF_Font* overlayfont = TTF_OpenFont("/usr/share/fonts/TTF/DejaVuSans-ExtraLight.ttf", 14);
+
+    // Render the glyph to an SDL_Surface (ARGB32)
+    SDL_Color white = {255, 255, 255, 255};
+    SDL_Surface* glyphSurface = TTF_RenderGlyph_Blended(overlayfont, (Uint16)uChar, white);
+    if (!glyphSurface) return;
+
+    // Clamp glyph size to fit in 10x16
+    int w = glyphSurface->w > 10 ? 10 : glyphSurface->w;
+    int h = glyphSurface->h > 14 ? 14 : glyphSurface->h;
+
+    // Copy pixels into alpha/body buffers
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            Uint8* pixel = (Uint8*)glyphSurface->pixels + y * glyphSurface->pitch + x * 4;
+            Uint8 a = pixel[3]; // SDL_PIXELFORMAT_ARGB8888
+            int dst = (iy + y) * 128 + (ix + x);
+            this->alpha[dst] = a;
+            this->body[dst] = (a > 0) ? 255 : 0;
+        }
+        // Zero out the rest of the row if glyph is narrower than 10
+        for (int x = w; x < 10; ++x) {
+            int dst = (iy + y) * 128 + (ix + x);
+            this->alpha[dst] = 0;
+            this->body[dst] = 0;
+        }
+    }
+    // Zero out the rest of the box if glyph is shorter than 14
+    for (int y = h; y < 14; ++y) {
+        for (int x = 0; x < 10; ++x) {
+            int dst = (iy + y) * 128 + (ix + x);
+            this->alpha[dst] = 0;
+            this->body[dst] = 0;
+        }
+    }
+
+    // Set width and failcode
+    this->body[uChar & 0x7F] = w;
+    this->alpha[uChar & 0x7F] = 0;
+
+    SDL_FreeSurface(glyphSurface);
+#endif // RERUN
 }
 
 extern HWND global_hWnd; //RERUN FONT TEST
 void	ImageMap_Desc::InitFont(int	pageno, int width, int height)
 {
-#if 0 //RERUN
+
 // fill main map with white...
 	int cx, cy;
 
@@ -7168,17 +7312,10 @@ void	ImageMap_Desc::InitFont(int	pageno, int width, int height)
 	}
 
 //RERUN	g_OffScreenDC.SelectObject(oldfont);
-#endif
 }
 
 void COverlay::PutC3(SWord& x,SWord& y,int uChar)
 {
-	printf("%c",(char)uChar);
-	if ((char)(uChar) == '.')
-	{
-		printf("\n");
-	}
-
 	int	pageno = (uChar & 0x7f00) >> 7;
 	int	index = uChar & 0xFF;
 
