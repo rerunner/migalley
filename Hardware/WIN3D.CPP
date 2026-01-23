@@ -103,8 +103,6 @@ questions about this file may be asked at http://www.simhq.com/
 
 #include "XX_ScreenFlip_Vulkan.h" // Vulkan
 
-TTF_Font * sdlTextFont; //RERUN global font for text rendering
-
 //RERUN #define DDSCAPS_LOCALVIDMEM 0x00000000l
 
 UByte videoBuffer =0;	//OFF==0 ON==1;
@@ -565,13 +563,6 @@ CON	direct_draw::direct_draw()
 	// 2) Create Vulkan surface from SDL window
 	Vulkan_CreateSDLSurface(Master_3d.SdlWinInst);
 #endif
-
-	sdlTextFont = TTF_OpenFont("/usr/share/fonts/TTF/DejaVuSansMono.ttf", 16);
-	if (sdlTextFont == NULL)
-	{
-		printf("TTF_OpenFont Failed!\n");
-		assert(1);
-	}
 
 	for (q=0;q<NumModes && q<128;q++)
 	{

@@ -639,7 +639,6 @@ static void blitSurfaceToStaging(SDL_Surface* src, int dstX, int dstY, uint8_t* 
     if (conv != src) SDL_FreeSurface(conv);
 }
 
-extern TTF_Font * sdlTextFont;
 void direct_draw::XX_ScreenFlip_Vulkan(SDL_Surface* ddsBack)
 {
     vkWaitForFences(vkDevice, 1, &fence, VK_TRUE, UINT64_MAX);
