@@ -9,6 +9,8 @@ add_library(UI STATIC
     MiniUI.h   # optional, for IDE visibility
 )
 
+set_source_files_properties(QuickMissionUI.cpp PROPERTIES COMPILE_FLAGS "-Wno-deprecated-declarations")
+
 # Inherit common includes/defines
 target_link_libraries(UI PRIVATE ProjectDefaults)
 

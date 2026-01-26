@@ -756,7 +756,7 @@ void	DeadStream::SetWorldDead(WorldStuff* world)
 								int elts=g.NumElts();
 								b.PutWord((short)tmp->uniqueID.bitfieldUid.count); //DAW 09/05/99 as per Jims instructions
 								b.PutWord((short&)tmp->MigStatus);
-								b.PutWord((short&)tmp->shape); //RERUN. This maybe needs to be: b.PutWord((short)ShapeNum(tmp->shape));
+								b.PutWord((short)ShapeNum(tmp->shape)); //RERUN, this was b.PutWord((short&)tmp->shape);
 						if (elts==-1)
 							elts=elts;
 								b.PutByte(elts);
@@ -813,7 +813,7 @@ void	DeadStream::SetWorldDead(WorldStuff* world)
 									wrote=true;
 									b.PutWord(uidnum);
 									b.PutWord((short&)tmp->MigStatus);
-									b.PutWord((short&)tmp->shape); //RERUN. This maybe needs to be: b.PutWord((short)ShapeNum(tmp->shape));
+									b.PutWord((short)ShapeNum(tmp->shape)); //RERUN, this was b.PutWord((short&)tmp->shape);
 									GroupItterator g(tmp->shape,tmp->Anim);
 									int elts=g.NumElts();
 						if (elts==-1)

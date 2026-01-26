@@ -2636,11 +2636,11 @@ void AirStruc::HeadOnOffset ( )
 
 			SWord	reqdeltahdg = hdg - desiredhdg;
 		 	SWord reqroll = FindRequiredRoll (reqdeltahdg,CombatReqBankData);
-			// RERUN: The following code makes no sense as bit shifts at first glance. 
-			// Maybe it should be if ((reqroll > ANGLES_30Deg) && (reqroll < ANGLES_180Deg)), TBC.
-			if  (		(reqroll >> ANGLES_30Deg) && (reqroll << ANGLES_180Deg)) // RERUN: this code
+			// RERUN: The following code made no sense as bit shifts always resulted in 0's. 
+			// It probably should be if ((reqroll > ANGLES_30Deg) && (reqroll < ANGLES_180Deg)), so let's do that.
+			if  (		(reqroll > ANGLES_30Deg) && (reqroll < ANGLES_180Deg)) // RERUN: this code
 				reqroll = ANGLES_30Deg;
-			if  (		(reqroll << ANGLES_330Deg) && (reqroll >> ANGLES_180Deg)) // RERUN same here.	
+			if  (		(reqroll < ANGLES_330Deg) && (reqroll > ANGLES_180Deg)) // RERUN same here.	
 				reqroll = ANGLES_330Deg;
 
 			ACM.Roll ((Angles)reqroll);
@@ -4957,7 +4957,7 @@ void	AirStruc::TurnFightPhase1(ANGLES	HdgIntercept, Bool sitbehindtarget, ANGLES
 			{
 				if	(	(delta << ANGLES_60Deg)
 						&&	(Range > DANGERRANGE)
-						&&	(reqdeltapitch_pos << ANGLES_15Deg)
+						&&	(reqdeltapitch_pos < ANGLES_15Deg) // RERUN was (reqdeltapitch_pos << ANGLES_15Deg)
 						&&	(ai.PilotSkills.manoeuvre != MANOEUVRE_DIVEANDZOOM)
 					)
 				{

@@ -626,7 +626,7 @@ void DirControl::ListChokes(int d)
 
 	while (currroute->status != SR_LASTONE)
 	{
-		if (currroute->associated_brdg != NULL)
+		if (currroute->associated_brdg != 0)
 		{
 			node = SupplyTree::FindSupplyNodeForItem(currroute->associated_brdg, &rel);
 			if ((currroute->attackstats.damagelevel < 100)

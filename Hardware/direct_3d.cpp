@@ -3634,11 +3634,11 @@ void direct_3d::InitPaletteData()
 {
 	for (int counter=0;counter<256;counter++)
 	{
-		palette[counter].hTexture=NULL;
+		palette[counter].hTexture=0;
 	}
 
-	backgroundMaterial.lpMaterial = NULL;
-	backgroundMaterial.hMaterial = NULL;
+	backgroundMaterial.lpMaterial = 0;
+	backgroundMaterial.hMaterial = 0;
 }
 
 //------------------------------------------------------------------------------
@@ -7911,7 +7911,7 @@ void direct_3d::RegisterTextureUse(	struct _DirectDraw* pDirectD,
 			hTexture=pvrt->d3dhTexture;
 		else
 		{
-			hTexture=NULL;
+			hTexture=0;
 			decreaseTextureQuality=true;
 		}
 
