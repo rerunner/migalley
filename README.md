@@ -28,7 +28,7 @@ A *native* Linux version of Rowan's MigAlley.
 
 - [x] Create a Joystick port from DirectInput to SDL2.
 
-- [ ] Recreate the full UI, activating all menus, maps, campaign planner. This is going to be a lot of work.
+- [x] Recreate the full UI, activating all menus, maps, campaign planner. This was a lot of work.
 
 - [ ] See what is next (e.g. multiplayer, full vulkan replacement, etc).
 
