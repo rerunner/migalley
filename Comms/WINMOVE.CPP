@@ -121,7 +121,7 @@ questions about this file may be asked at http://www.simhq.com/
 #include	"OVERLAY.H"
 #include		"RCHATTER.H"
 #include "MISSMAN2.H" // RERUN
-#include	"mfc/RESOURCE.H" // RERUN added, comes from MFC
+#include	"RESOURCE.H" // RERUN added, comes from MFC
 
 #define		SPECIAL_KEYMAPS	FALSE
 

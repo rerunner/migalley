@@ -3,6 +3,7 @@ project(Hardware LANGUAGES CXX)
 
 add_library(Hardware STATIC
     # Hardware source files
+    dinput_stub.cpp
     CONFIG.CPP
     DDRWINIT.CPP
     HARDPUB.CPP

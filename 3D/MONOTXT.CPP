@@ -81,12 +81,13 @@ SetConsoleCursorPosition(screen, pos);
 //Returns	
 //
 //------------------------------------------------------------------------------
+#ifndef NDEBUG													//DAW 13Nov96
 void MonoText::SetCursor(SLong rx,SLong ry)
 {
-#ifndef NDEBUG													//DAW 13Nov96
 	cx = rx; cy = ry;
-#endif
+
 }
+#endif
 
 //------------------------------------------------------------------------------
 //Procedure		Print
@@ -159,12 +160,11 @@ void MonoText::Print(UByte* text,SLong length)
 //Returns	
 //
 //------------------------------------------------------------------------------
+#ifndef NDEBUG													//DAW 13Nov96
 void MonoText::TextOutMono(UByte* str)
 {
 	printf((char*)str); //RERUN
 /*
-#ifndef NDEBUG													//DAW 13Nov96
-
 	UByte  chr;
 
 	COORD pos = { cx, cy };
@@ -197,10 +197,9 @@ void MonoText::TextOutMono(UByte* str)
 
 		}
 	}
-#endif
 */
 }
-
+#endif
 //------------------------------------------------------------------------------
 //Procedure		BinToASCII
 //Author		Paul.   
@@ -213,9 +212,9 @@ void MonoText::TextOutMono(UByte* str)
 //Returns	
 //
 //------------------------------------------------------------------------------
+#ifndef NDEBUG													//DAW 13Nov96
 void MonoText::BinToASCII(SLong value,UByte* strval)
 {
-#ifndef NDEBUG													//DAW 13Nov96
 	SLong	ival;
 
 	strval += 9;
@@ -230,9 +229,8 @@ void MonoText::BinToASCII(SLong value,UByte* strval)
 
 		strval--;
 	}
-#endif
 }
-
+#endif
 //------------------------------------------------------------------------------
 //Procedure		StartTimer
 //Author		Paul.   
@@ -310,9 +308,9 @@ void MonoText::StopTimer(SLong& timevar,UByte* string)
 #endif
 }
 
+#ifndef NDEBUG													//DAW 13Nov96
 void	MonoText::BinToHEX(SLong v,UByte* c)
 {
-#ifndef NDEBUG													//DAW 13Nov96
 	int p=7;
 	while (p>=0)
 	{
@@ -325,60 +323,6 @@ void	MonoText::BinToHEX(SLong v,UByte* c)
 		p--;
 	}
 	c[8]=0;
-
-#endif
 }
+#endif
 
-//TempCode CSB 13Jul00 ProbeTime::ProbeTime(int x,char* s)	//="%5i")		
-//TempCode CSB 13Jul00 {	
-//TempCode CSB 13Jul00 	col=x;str=s;
-//TempCode CSB 13Jul00 	LARGE_INTEGER t;
-//TempCode CSB 13Jul00 	QueryPerformanceCounter(&t);
-//TempCode CSB 13Jul00 	ticker=t.QuadPart;
-//TempCode CSB 13Jul00 	Mono_Text.Print(UByteP(" <"));
-//TempCode CSB 13Jul00 }
-//TempCode CSB 13Jul00 
-//TempCode CSB 13Jul00 ProbeTime::~ProbeTime()
-//TempCode CSB 13Jul00 {
-//TempCode CSB 13Jul00 //DEADCODE JIM 08/06/00 	if (Key_Tests.KeyPress3d(RESURRECTKEY))
-//TempCode CSB 13Jul00 //DEADCODE JIM 08/06/00 	{
-//TempCode CSB 13Jul00 //DEADCODE JIM 08/06/00 		timergo=!timergo;
-//TempCode CSB 13Jul00 //DEADCODE JIM 08/06/00 		for (int i=0;i<80;i++)
-//TempCode CSB 13Jul00 //DEADCODE JIM 08/06/00 			coltimes[i]=colinsts[i]=0;
-//TempCode CSB 13Jul00 //DEADCODE JIM 08/06/00 	}
-//TempCode CSB 13Jul00 	LARGE_INTEGER	ticker2;
-//TempCode CSB 13Jul00 	QueryPerformanceCounter(&ticker2);
-//TempCode CSB 13Jul00 	ticker2.QuadPart-=ticker;
-//TempCode CSB 13Jul00 	long	result=ticker2.QuadPart/divfactor;
-//TempCode CSB 13Jul00 //TEMPCODE DAW 07/06/2000 		if (result>coltimes[col]+1000)
-//TempCode CSB 13Jul00 //TEMPCODE DAW 07/06/2000 			Mono_Text.Print(UByteP(str));
-//TempCode CSB 13Jul00 //TEMPCODE DAW 07/06/2000 		if (result<50000)
-//TempCode CSB 13Jul00 //TEMPCODE DAW 07/06/2000 		{
-//TempCode CSB 13Jul00 //TEMPCODE DAW 07/06/2000 			coltimes[col]=(coltimes[col]*colinsts[col]+result)/(colinsts[col]+1);
-//TempCode CSB 13Jul00 //TEMPCODE DAW 07/06/2000 			colinsts[col]+=1;
-//TempCode CSB 13Jul00 //TEMPCODE DAW 07/06/2000 		}
-//TempCode CSB 13Jul00 //TEMPCODE DAW 07/06/2000 		Mono_Text.Print(UByteP(">"));
-//TempCode CSB 13Jul00 	int row=colcounts[col];
-//TempCode CSB 13Jul00 //TEMPCODE DAW 07/06/2000 		if (timergo)
-//TempCode CSB 13Jul00 	{  
-//TempCode CSB 13Jul00 		Mono_Text.Print(UByteP(">   "));
-//TempCode CSB 13Jul00 		Mono_Text.PrintAt(col+15,row,UByteP(" "));
-//TempCode CSB 13Jul00 		Mono_Text.PrintAt(col,row,result,UByteP(str));
-//TempCode CSB 13Jul00 	}
-//TempCode CSB 13Jul00 	row++;if (row>20) row=0;
-//TempCode CSB 13Jul00 //TEMPCODE DAW 07/06/2000 		if (timergo)
-//TempCode CSB 13Jul00 	{
-//TempCode CSB 13Jul00 //			Mono_Text.PrintAt(col,row,UByteP(">"));
-//TempCode CSB 13Jul00 		Mono_Text.PrintAt(col+15,row,UByteP(">"));
-//TempCode CSB 13Jul00 	}
-//TempCode CSB 13Jul00 	colcounts[col]=row;
-//TempCode CSB 13Jul00 
-//TempCode CSB 13Jul00 }
-//TempCode CSB 13Jul00 int	QPFMS()	{LARGE_INTEGER v;QueryPerformanceFrequency(&v);return v.QuadPart/10000;}
-//TempCode CSB 13Jul00 
-//TempCode CSB 13Jul00 int		ProbeTime::colcounts[80]={0};
-//TempCode CSB 13Jul00 float	ProbeTime::coltimes[80]={0};
-//TempCode CSB 13Jul00 int		ProbeTime::colinsts[80]={0};
-//TempCode CSB 13Jul00 int		ProbeTime::divfactor=QPFMS();
-//TempCode CSB 13Jul00 bool	ProbeTime::timergo=true;
-//TempCode CSB 13Jul00 

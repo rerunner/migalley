@@ -59,7 +59,7 @@
 
 questions about this file may be asked at http://www.simhq.com/
 */
-
+#include <iostream>
 #include "_FILE.H"
 
 //------------------------------------------------------------------------------
@@ -111,7 +111,7 @@ questions about this file may be asked at http://www.simhq.com/
 #include	"SHAPES.H"
 #include	"LSTREAM.H"
 #include "MONOTXT.H"
-#include "mfc/RESOURCE.H"
+#include "RESOURCE.H"
 #ifndef __BCPLUSPLUS__
 #include "CSTRING.H"
 #endif
@@ -972,7 +972,10 @@ fileblockptr	fileman::readfilelist(dirindex	reqdir)
 string	fileman::namenumberedfilelessfail(FileNum	MyFile)
 {
     if (direntries[dirnum(MyFile)].driverfile==INVALIDFILENUM)
+	{
+		std::cout << "namenumberedfilelessfail found INVALIDFILENUM" << std::endl;
     	return NULL;
+	}
 	int		fnum=((int)MyFile & (int)FILENUMMASK)<<4;
 	fileblockptr	fbp=NULL;
 	if (fnum==0)
@@ -988,6 +991,7 @@ string	fileman::namenumberedfilelessfail(FileNum	MyFile)
 	if (dirlister[0]==0)										//DAW 25Feb97
 	{
 		static char buf[] = "//";
+		//std::cout << "namenumberedfilelessfail found file " << buf << std::endl;
 		return buf;
 	}
 	assert(  (dirlister[0]) && ("Not expecting concatenated directory here!") );
@@ -1007,7 +1011,7 @@ string	fileman::namenumberedfilelessfail(FileNum	MyFile)
 		((ULong*) (&pathname[filenameindex]))[3]=0L;
     }
 
-
+	//std::cout << "namenumberedfilelessfail found file " << pathnameptr << std::endl;
 	return	pathnameptr;
 
 }
@@ -1025,6 +1029,7 @@ string	fileman::namenumberedfile(FileNum	MyFile)
 	if (dirlister[0]==0)										//DAW 25Feb97
 	{
 		static char buf[] = "//";
+		//std::cout << "namenumberedfile found " << buf << std::endl;
 		return buf;
 	}
 	assert(  (dirlister[0]) && ("Not expecting concatenated directory here!") );
@@ -1035,11 +1040,12 @@ string	fileman::namenumberedfile(FileNum	MyFile)
 
 	int		fnum=((int)MyFile & (int)FILENUMMASK)<<4;
 
-	if (fb.getsize() && (fnum>fb.getsize()))
+	if (fb.getsize() && (fnum>fb.getsize())) // RERUN: Reverted to > to match legacy behavior
 		_Error.EmitSysErr("File number (%04X) past end of Dir.Dir file!",MyFile);
 	if (dirnum(MyFile)==assumefakedir && (int(MyFile)&255)==8)
 	{	//fake long file name potential
 		memcpy(namedirdir+128-filenameindex,pathname,filenameindex);
+		//std::cout << "namenumberedfile found " << (namedirdir+128-filenameindex+(pathnameptr-pathname)) << std::endl;
 		return	namedirdir+128-filenameindex+(pathnameptr-pathname);
 	}
 	else
@@ -1056,7 +1062,7 @@ string	fileman::namenumberedfile(FileNum	MyFile)
 			fputc('\n',errhandle);
 		}
 
-	
+		//std::cout << "namenumberedfile found " << pathnameptr << std::endl;
 		return(pathnameptr);
 	}
 };
@@ -1066,6 +1072,8 @@ FILE*	fileman::easyopennumberedfile(FileNum	MyFile)
 {
 string	name=namenumberedfile(MyFile);
 		FILE* rv=fopen(name,"rb");
+		if (!rv) 
+			std::cout << "fopen failed!!" << std::endl;
 		return(rv);
 			
 }
@@ -1149,7 +1157,10 @@ Bool	fileman::existnumberedfile(FileNum	MyFile)
 		//else
 			FILE* retval=fopen(name,"rb");
 		if (retval==NULL)
+		{
+			std::cout << "fopen failed!!!" << std::endl;
 			return(FALSE);
+		}
 		//else
 			closefile(retval);
 			return(TRUE);
@@ -1919,32 +1930,6 @@ void	dirlist::makedirlist(char* p,char* w)
 	w=&tmpflist[i*FNAMESIZE];
 	while ((*w++=*p++)!=0);
 	i++;
-#ifdef __WATCOMC__
-
-	dirent* dir=opendir(pathname);
-	dirent* dent=dir;
-	if (dir)
-	{
-		dent=readdir(dir);
-		while (i<MAXFLIST&&dent)
-		{
-			if ((dent->d_attr&_A_SUBDIR)==0)
-			{
-				p=dent->d_name;
-
-				if (strlen (p) > 15)
-					p = " Bad Long Name";
-
-				w=&tmpflist[i*FNAMESIZE];
-				while ((*w++=*p++)!=0);
-				i++;
-			}
-			dent=readdir(dir);
-		}
-		closedir(dir);
-	}
-#endif
-#ifdef __MSVC__
 
 	WIN32_FIND_DATA results;
 	HANDLE h=FindFirstFile(pathname,&results);
@@ -1956,20 +1941,7 @@ void	dirlist::makedirlist(char* p,char* w)
 		i++;
 		if (!FindNextFile(h,&results)) break;
 	}
-#elif defined (__GNUC__)
-// RERUN TODO: Make this work on a unix filesystem with forward slash instead of backward slash
-#pragma message "RERUN: Missing code, IMPLEMENT THIS"
-	WIN32_FIND_DATA results;
-	HANDLE h=FindFirstFile(pathname,&results);
-	while (i<MAXFLIST && h!=INVALID_HANDLE_VALUE)
-	{
-		p=results.cAlternateFileName; // if long file name converts to short
-		w=&tmpflist[i*FNAMESIZE];
-		while ((*w++=*p++)!=0);
-		i++;
-		if (!FindNextFile(h,&results)) break;
-	}
-#endif
+
 	numfiles=i;
 	filelist=new char [i*FNAMESIZE];
 	while (i--)

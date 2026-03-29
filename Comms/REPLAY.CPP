@@ -107,7 +107,7 @@ questions about this file may be asked at http://www.simhq.com/
 #include <unistd.h>
 #include <filesystem> //C++17 and up
 #include	"AREATYPE.H"
-#include	"mfc/RESOURCE.H" // RERUN
+#include	"RESOURCE.H" // RERUN
 #include	"SAVEGAME.H"
 #include	"AAA.H"
 

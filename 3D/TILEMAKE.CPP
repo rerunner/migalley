@@ -59,7 +59,12 @@
 
 questions about this file may be asked at http://www.simhq.com/
 */
-#include "WIN32_COMPAT.H" //RERUN
+#include "WIN32_COMPAT.H"
+#include "MFC_stub.h"
+#include "DLGITEM.H"
+#include "RDIALOG.H"
+#include "MIG.H"
+#include "MIGVIEW.H"
 #include "SDL.h"
 #define DIRECTINPUT_VERSION 0x700 // RERUN
 #include "dinput_stub.h"
@@ -1410,7 +1415,15 @@ void Render2Map(UByte* p,const SWord xo,const SWord yo,const SWord scale)
 				if (lineCol)
 				{
 					if (ispalettised)	currentRouteColor8=lineCol;
-				 	else	currentRouteColor16=palLookup[lineCol];
+				 	else	
+					{
+						if (!palLookup) 
+						{
+							SetPalLookup();
+							GetPalLookup();
+						}
+						currentRouteColor16=palLookup[lineCol];
+					}
 				}
 
 				sectionCount=*p++;
@@ -4555,7 +4568,14 @@ void RenderTile2Surface(UByte* pdata,ROWANSURFACEDESC* prsd)
 		if (prsd->dwRGBBitCount==8)
 			currentRouteColor8=lineCol;
 	 	else
+		{
+			if (!palLookup)
+			{
+				SetPalLookup();
+				GetPalLookup();
+			}
 			currentRouteColor16=palLookup[lineCol];
+		}
 
 		UByte sectionCount=*pdata++;
 

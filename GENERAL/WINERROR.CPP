@@ -85,9 +85,6 @@ questions about this file may be asked at http://www.simhq.com/
 #include	"WORLDINC.H"
 #include	"WORLD.H"
 
-#include	"WIN32_COMPAT.H"											//ARM 20Jun96
-//#include	"winmain.h"
-
 #include	"STUB3D.H"
 //extern Main 	_Main;
 
@@ -115,7 +112,8 @@ bool	Error::pleaselog=true;
 Error::Error()
 {
 	exitmsg="";
-	//set_terminate(terminate);
+	m_errorString[0] = '\0';
+	//set_terminate(terminate); // RERUN: This is commented out in original code
 	ReportLastRunError();
 }
 static const char* errorfilename="\\MIG_ALLEY_LAST_ERROR.LOG";
@@ -197,30 +195,43 @@ Error::~Error()
 
 Error& Error::ExitMode()	
 {
+	m_errorString[0] = '\0'; // RERUN: Clear buffer on new error chain
 	Master_3d.Stop();
-	return this _;
+	return *this;
 }
-Error& Error::Say(const char *, ...)	{return this _;}
+
+Error& Error::Say(const char *fmt, ...)
+{
+	if (!fmt) return *this;
+	char temp[1024];
+	va_list args;
+	va_start(args, fmt);
+	vsnprintf(temp, sizeof(temp), fmt, args);
+	va_end(args);
+	strncat(m_errorString, temp, sizeof(m_errorString) - strlen(m_errorString) - 1);
+	return *this;
+}
 
 Error& Error::SayAndQuit(const char *fmt, ...)
 {
-	static	char String [256];
+	static	char userMsg [1024];
 
 	va_list	marker;
 
 	va_start(marker, fmt);
+	vsnprintf(userMsg, sizeof(userMsg), fmt, marker);
+	va_end(marker);
+	strncat(m_errorString, userMsg, sizeof(m_errorString) - strlen(m_errorString) - 1);
 
 	Master_3d.QuitGame();
+	exitmsg = m_errorString;
 
-	vsprintf(String, fmt, marker);
-	exitmsg=String;
-
-	MessageBox (Master_3d.winst, String, "SysError", MB_OK);
+	MessageBox (Master_3d.winst, exitmsg, "SysError", MB_OK);
 	FILE* file=fopen(errorfilename,"wt");
 	if (file)
 	{
 		int i;
-		for (i=0;i<300;i++)
+		for (i=0;i<sizeof(m_errorString)-1;i++)
 			breakif(exitmsg[i]==0);
 		fwrite(exitmsg,i+1,1,file);
 		fwrite("\n",2,1,file);
@@ -230,7 +241,7 @@ Error& Error::SayAndQuit(const char *fmt, ...)
 	if (file)
 	{
 		int i;
-		for (i=0;i<300;i++)
+		for (i=0;i<sizeof(m_errorString)-1;i++)
 			breakif(exitmsg[i]==0);
 		fwrite(exitmsg,i,1,file);
 		fwrite("\n",1,1,file);
@@ -241,6 +252,7 @@ Error& Error::SayAndQuit(const char *fmt, ...)
 	return	*(Error*)NULL;
 
 }
+
 
 	#if	DEBUGGING
 //------------------------------------------------------------------------------
@@ -291,7 +303,7 @@ void Error::OpenLog()
 //Returns	
 //
 //------------------------------------------------------------------------------
-void Error::WriteToLog(char *fmt,...)
+void Error::WriteToLog(const char *fmt,...)
 {
 	va_list marker;
 

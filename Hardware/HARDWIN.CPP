@@ -79,7 +79,7 @@ questions about this file may be asked at http://www.simhq.com/
 #include "MATHASM.H"
 #include	"WIN3D.H"
 #include "MATHASM.H"
-#include "WinMig3D.H" //RERUN
+#include "STUB3D.H" //RERUN
 
 extern SWord	winmode_w, winmode_h; //RERUN
 
@@ -190,7 +190,8 @@ void	MigDisplay::XX_SetGraphicsMode()
 	}
 
 	// Setup Vars
-	BytesPerPixel = DD.DDModes[DD.DDCurrMode].colourdepth/8; // RERUN: Same as SDL_PIXELBITCOUNT / 8
+	//BytesPerPixel = DD.DDModes[DD.DDCurrMode].colourdepth/8; // RERUN: Same as SDL_PIXELBITCOUNT / 8
+	BytesPerPixel = SDL_PIXELBITCOUNT / 8;
 
 //RDH 16Oct97 - set screen RGB format information for non-8bpp modes
 	if (BytesPerPixel!=1)
@@ -214,12 +215,12 @@ void	MigDisplay::XX_SetGraphicsMode()
 	}
 	ChangeBytesPerScanLine ();
 
-	//RECT	rect;
-	SDL_Rect rect;
+	RECT	rect;
+	//SDL_Rect rect;
 	
 	if (!_DirectDraw::lpDirectDD->isFullScreen())
 	{
-#if 0 //SDL
+#if 1 //SDL
 		::GetWindowRect(DD.hWnd,&rect);
 #else
 		rect.x = rect.y = 0;
@@ -228,7 +229,7 @@ void	MigDisplay::XX_SetGraphicsMode()
 #endif
 	}
 	else{
-#if 0
+#if 1
 		rect.top=0;rect.left=0;
 		rect.bottom=DD.DDModes[DD.DDCurrMode].height;
 		rect.right=DD.DDModes[DD.DDCurrMode].width;
@@ -238,7 +239,7 @@ void	MigDisplay::XX_SetGraphicsMode()
 		rect.w=DD.DDModes[DD.DDCurrMode].width;
 #endif
 	}
-#if 0
+#if 1
 	int	window_width = rect.right - rect.left;
 	int	window_height = rect.bottom - rect.top;
 #else
@@ -342,7 +343,7 @@ void	MigDisplay::XX_ScreenFlip()
 	_DirectDraw::lpDirectDD->XX_ScreenFlip_Vulkan(DD.lpDDSBack);
 	return;
 #endif
-//SDL	RECT 	rect;
+	RECT 	winrect; //RERUN
 	SDL_Rect 	rect;
 	DDBLTFX	ddbltfx;
 //SDL	HRESULT ddrval;
@@ -355,14 +356,11 @@ void	MigDisplay::XX_ScreenFlip()
 	case 0:
 	break;
 	case 1:
-#if 0 //SDL
-		::GetWindowRect(DD.hWnd,&rect);
-#else
-		rect.h = winmode_h;
-		rect.w = winmode_w;
-		rect.x = 0;
-		rect.y = 0;
-#endif
+		::GetWindowRect(DD.hWnd,&winrect);
+		rect.h = winrect.bottom - winrect.top;
+		rect.w = winrect.right - winrect.left;
+		rect.x = winrect.left;
+		rect.y = winrect.top;
 
 		ddbltfx.dwSize = sizeof (DDBLTFX);
 
@@ -823,18 +821,17 @@ ULong MigDisplay::SetDirectDrawMode (InitDisplayDef& Mode)
 	bool fullScreen = _DirectDraw::lpDirectDD->isFullScreen();
 	int	curmode=DD.DDCurrMode;
 
-	//SDL	RECT 	rect;
+	RECT 	winrect;
 	SDL_Rect 	rect;
 	if (!fullScreen)
 	{
-#if 0 //SDL
-		::GetWindowRect(DD.hWnd,&rect);
-#else
-		rect.h = winmode_h;
-		rect.w = winmode_w;
-		rect.x = 0;
-		rect.y = 0;
-#endif
+
+		::GetWindowRect(DD.hWnd,&winrect);
+
+		rect.h = winrect.bottom - winrect.top;
+		rect.w = winrect.right - winrect.left;
+		rect.x = winrect.left;
+		rect.y = winrect.top;
 	}
 	else
 	{
@@ -875,8 +872,9 @@ ULong MigDisplay::SetDirectDrawMode (InitDisplayDef& Mode)
 										DD.DDModes[curmode].colourdepth,0,0);
 #else
 		// Set fullscreen mode with given resolution
-		SDL_SetWindowSize(DD.hWnd, DD.DDModes[curmode].width, DD.DDModes[curmode].height);
-		SDL_SetWindowFullscreen(DD.hWnd, SDL_WINDOW_FULLSCREEN);
+		auto* backend = backend_from_hwnd(DD.hWnd);
+		SDL_SetWindowSize(backend->window, DD.DDModes[curmode].width, DD.DDModes[curmode].height);
+		SDL_SetWindowFullscreen(backend->window, SDL_WINDOW_FULLSCREEN);
 
 		// Optionally set display mode (refresh rate, format)
 		SDL_DisplayMode mode;
@@ -886,7 +884,7 @@ ULong MigDisplay::SetDirectDrawMode (InitDisplayDef& Mode)
 		mode.refresh_rate = 0;                  // driver default
 		mode.driverdata = nullptr;
 
-		SDL_SetWindowDisplayMode(DD.hWnd, &mode);
+		SDL_SetWindowDisplayMode(backend->window, &mode);
 #endif
 	}
 	else{

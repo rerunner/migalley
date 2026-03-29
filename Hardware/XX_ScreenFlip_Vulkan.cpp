@@ -1,3 +1,6 @@
+#include "WIN32_COMPAT.H"
+#include "MFC_stub.h"
+
 #include <vulkan/vulkan.h>
 //#include <vulkan/vulkan_xlib.h>
 
@@ -99,9 +102,11 @@ VkShaderModule direct_draw::loadShader(VkDevice device, const char* path)
 }
 
 // Vulkan_Init (called once after SDL window creation)
-
-bool direct_draw::Vulkan_Init(SDL_Window* theWin)
+//bool direct_draw::Vulkan_Init(SDL_Window* theWin)
+bool direct_draw::Vulkan_Init(HWND hWnd)
 {
+    auto* backend = backend_from_hwnd(hWnd);
+    SDL_Window* theWin = backend->window;
     // --- Enumerate all available instance extensions ---
     uint32_t availExtCount = 0;
     vkEnumerateInstanceExtensionProperties(nullptr, &availExtCount, nullptr);

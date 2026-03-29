@@ -289,7 +289,6 @@ void	Profile::SetTargetUIDs(bool	fixconvoys)
 //
 void	PackageList::SaveBin(Profile* profile,BOStream&file)
 {
-#if 0 //RERUN todo
 	file<<CSprintf("Package battlefield: Duty %i, Takeoff,Target,Egress %05x,%05x,%05x Waypoints: %i",
 		profile->duty,profile->packagetakeoff,profile->packagetarget,profile->egressloc,profile->wpsused);
 	for (int wav=0;wav<Profile::MAX_WAVES;wav++)
@@ -371,7 +370,6 @@ void	PackageList::SaveBin(Profile* profile,BOStream&file)
 				SaveAirItemBin(&profile[0][wav][2],file);
 			}
 		}
-#endif //RERUN
 }
 
 

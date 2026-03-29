@@ -1852,7 +1852,7 @@ void Graphic::SetColour(ImageMapDescPtr image)
 			image_height;										//PD 05Dec95
 
 	image_width = image->w-1;									//RJS 06Feb98
-	image_height= image->h-1;									//RJS 06Feb98
+	image_height= image->h-1;									//RJS Fe
 
 	image_x_mask	= ((SLong )image_width)<<16;				//PD 05Dec95
 	image_y_mask	= ((SLong )image_height)<<16;				//PD 05Dec95

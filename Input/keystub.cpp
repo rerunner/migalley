@@ -68,8 +68,10 @@ questions about this file may be asked at http://www.simhq.com/
 //Description    Keyboard testing module stub
 //------------------------------------------------------------------------------
 
-#include	<dos.h>
+//#include	<dos.h>
 //#include	"stdafx.h"
+#include "WIN32_COMPAT.H" //RERUN
+
 #include	"DOSDEFS.H"
 
 //RERUN #include	"Files.g"
@@ -77,12 +79,14 @@ questions about this file may be asked at http://www.simhq.com/
 #include	"FILEMAN.H"
 
 #include	"HARDPASM.H"
+
 #pragma message ("Keystub")
 
-#define	SPECIAL_KEYMAPS	0 /* RERUN is 1 on windows!! test this */
+#define	SPECIAL_KEYMAPS	1 
 #include	"KEYTEST.H"
+#if defined SPECIAL_KEYMAPS //RERUN added condition
 KeyMapping	*Debug3dMapTable=ThisKeyMapping;
-
+#endif //RERUN
 
 keytests	Key_Tests;
 
@@ -272,13 +276,13 @@ KeyMap3d*
 //Returns	
 //
 //------------------------------------------------------------------------------
-static __int64	lastkeychecksum=0;
+static __int64_t	lastkeychecksum=0;
 void	keytests::Reg3dConv(KeyMapping* mapreq,int	i)
 {
 	ClearKeyTables();
 KeyMap3d*
 	keymap=(KeyMap3d*) reftable3d.flat;
-	int	keychecksum=0;
+	uint64_t	keychecksum=0;
 	while (i--)
 	{
 		keychecksum=keychecksum*2+(keychecksum>>63)+mapreq->scancode+mapreq->shiftstate+mapreq->bitflag;

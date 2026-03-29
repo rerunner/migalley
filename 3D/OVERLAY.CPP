@@ -68,6 +68,7 @@ questions about this file may be asked at http://www.simhq.com/
 //Description    
 //------------------------------------------------------------------------------
 #include "WIN32_COMPAT.H" //RERUN
+#include "MFC_stub.h"
 #include "SDL.h"
 #include <SDL_ttf.h> //RERUN
 #define DIRECTINPUT_VERSION 0x700 // RERUN
@@ -104,8 +105,7 @@ extern SWord	winmode_w, winmode_h; //RERUN
 
 extern GameSettings gameSettings;
 
-//RERUN extern	CDC g_OffScreenDC;
-HDC g_OffScreenDC; //RERUN
+extern	CDC g_OffScreenDC;
 
 const ULong NO_BACKGROUND_WIPE=0x00000000;
 const ULong WIPE_ALPHA_MASK=0xFF000000;
@@ -7080,7 +7080,7 @@ void	COverlay::AccelSelection(UByte hilight,ULong acceltype)
 	}
 }
 
-//RERUN extern CFont* (g_AllFonts[][4]);
+extern CFont* (g_AllFonts[][4]);
 
 static ULong vsets[16]=
 {
@@ -7265,8 +7265,8 @@ void	ImageMap_Desc::InitFont(int	pageno, int width, int height)
 	}
 
 // fill transparency with font table...
-//RERUN	CFont* oldfont=g_OffScreenDC.SelectObject(::g_AllFonts[2][0]);
-	// RERUN g_OffScreenDC = GetDC(global_hWnd); //RERUN FONT TEST
+	CFont* oldfont=g_OffScreenDC.SelectObject(::g_AllFonts[2][0]);
+	g_OffScreenDC = *AfxGetApp()->m_pMainWnd->GetDC(); //RERUN FONT TEST
 
 	int	realpageno = pageno>>1;
 
@@ -7311,7 +7311,7 @@ void	ImageMap_Desc::InitFont(int	pageno, int width, int height)
 		uChar++;
 	}
 
-//RERUN	g_OffScreenDC.SelectObject(oldfont);
+	g_OffScreenDC.SelectObject(oldfont);
 }
 
 void COverlay::PutC3(SWord& x,SWord& y,int uChar)

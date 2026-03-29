@@ -76,7 +76,7 @@ questions about this file may be asked at http://www.simhq.com/
 #include	"BFNUMBER.H"
 #include	"PERSONS2.H"
 #define	QUICKQUICKQUICK
-		#include	"mfc/RESOURCE.H"
+		#include	"RESOURCE.H"
 		#include	"SQUICK1.H"
 
 typedef	 QuickFields	Q;

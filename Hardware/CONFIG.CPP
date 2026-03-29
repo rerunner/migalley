@@ -273,7 +273,9 @@ HRESULT WINAPI FindDevice(LPGUID lpGuid,LPSTR,LPSTR,LPD3DDEVICEDESC lpHWDesc,LPD
 inline bool IsValidMode(SModeFlags* pmf,UWord w,UWord h)
 {
 //RERUN	if (w*3!=h*4) return false;
-	for (int x=0;x<SModeFlags::Max_Modes;x++) if (pmf->widths[x]==w) return true;
+	for (int x=0;x<SModeFlags::Max_Modes;x++) 
+		if (pmf->widths[x]==w) 
+			return true;
 	return false;
 }
 
@@ -441,19 +443,13 @@ void Configure(bool fFullConfig,HWND hWnd)
 		case PROC_SLOW: max_w=512; break;
 		case PROC_MIN:	max_w=640; break;
 		case PROC_MED:	max_w=640; break;
-		case PROC_MAX:	max_w=800; break;
+		case PROC_MAX:	max_w=1920; break;
 		}
 		//try to select a mode no more than 'max_w' wide
 
 		int nm,rez;
 		SDrvrModes* dm;
 		GetModes(nm, dm); // RERUN implemented in Win3D.cpp
-
-		//SDL HACK START
-		dm[0].displayBPP = 16;
-		dm[0].displayHeight = 600;
-		dm[0].displayWidth = 800;
-		//SDL HACK END
 
 		for (i=0,rez=0;i<nm;i++)
 			if (dm[i].driverNo==0 &&
@@ -486,7 +482,7 @@ void Configure(bool fFullConfig,HWND hWnd)
 		GetModes(nm,dm);
 		dddriver=(sd.num_drivers>=2)?1:0;
 
-		max_w=(Save_Data.processorType!=PROC_MAX)?800:1024;
+		max_w=(Save_Data.processorType!=PROC_MAX)?800:1920;
 
 		for (i=0,rez=0;i<nm;i++)
 			if (dm[i].driverNo==dddriver &&
@@ -633,7 +629,7 @@ void Configure(bool fFullConfig,HWND hWnd)
 						case PROC_SLOW: max_w=512; break;
 						case PROC_MIN:	max_w=640; break;
 						case PROC_MED:	max_w=640; break;
-						case PROC_MAX:	max_w=800; break;
+						case PROC_MAX:	max_w=1920; break;
 						}
 						//try to select a mode no more than 'max_w' wide
 

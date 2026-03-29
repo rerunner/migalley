@@ -99,7 +99,7 @@ questions about this file may be asked at http://www.simhq.com/
 #include "AREATYPE.H"
 #include "PROF.H"
 #include "MILES.H" // RERUN
-#include "WinMig3D.H" //SDL
+#include "STUB3D.H" //SDL
 
 #include	"IMAGEMAP.G"
 
@@ -1926,9 +1926,12 @@ void direct_3d::SetViewParams(ANGLES fov, MigWindow* w,DirectDP lpdirectd)
 #if 0 //SDL
 		::GetWindowRect(lpdirectd->hWnd,&rect);
 #else
+		::GetWindowRect(Master_3d.winst, &rect);
+		int w = rect.right - rect.left;
+		int h = rect.bottom - rect.top;
 		rect.left = rect.top = 0;
-		rect.right = winmode_w;
-		rect.bottom = winmode_h;
+		rect.right = w;
+		rect.bottom = h;
 #endif
 	}
 	else{

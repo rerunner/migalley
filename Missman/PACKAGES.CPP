@@ -91,7 +91,7 @@ questions about this file may be asked at http://www.simhq.com/
 #include "WINMOVE.H"
 #include "COMMS.H"
 #include "PLANETYP.H"
-#include "mfc/RESOURCE.H"
+#include "RESOURCE.H"
 #include	"GLOBREFS.H"
 #include "MYERROR.H"
 #include "MISSMAN2.H" // RERUN

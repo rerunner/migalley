@@ -70,7 +70,12 @@ questions about this file may be asked at http://www.simhq.com/
 //				with their associated routines such as constructor and new.
 //				Please place immediately after the include file which defines them
 //------------------------------------------------------------------------------
-#include "WIN32_COMPAT.H" 
+#include "WIN32_COMPAT.H"
+#include "MFC_stub.h"
+#include "DLGITEM.H"
+#include "RDIALOG.H"
+#include "MIG.H"
+#include "MIGVIEW.H"
 #include "SDL.h"
 #include	"DOSDEFS.H"
 #include	"FILEMAN.H"

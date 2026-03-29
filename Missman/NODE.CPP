@@ -82,7 +82,7 @@ questions about this file may be asked at http://www.simhq.com/
 #include "RANGES.H" // RERUN
 #include	"WORLDINC.H"
 #include	"NODE.H"
-#include	"mfc/RESOURCE.H"
+#include	"RESOURCE.H"
 enum	{DAYS0 = 0};
 #define	T SupplyTree
 

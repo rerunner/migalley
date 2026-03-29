@@ -78,6 +78,12 @@ questions about this file may be asked at http://www.simhq.com/
 //------------------------------------------------------------------------------
 //THe aoa calc is only good for camels###
 
+#include "WIN32_COMPAT.H"
+#include "MFC_stub.h"
+#include "DLGITEM.H"
+#include "RDIALOG.H"
+
+
 #include "_MOVE.H" //RERUN
 
 #define F_GRAFIX												//RDH 24Sep96
@@ -121,7 +127,7 @@ BITABLE		(Bool);
 #include	"NODE.H"
 #include	"OVERLAY.H"
 #include	"RCHATTER.H"
-#include	"mfc/RESOURCE.H"
+#include	"RESOURCE.H"
 
 extern DPlay _DPlay;
 

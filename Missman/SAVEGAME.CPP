@@ -100,6 +100,16 @@ questions about this file may be asked at http://www.simhq.com/
 #include	"GROUPITT.H"
 #include	"REPLAY.H"
 #include "GAMESET.H"
+#include "RSTATIC.H" // RERUN for CRStatic
+#include "RRADIO.H" // RERUN for CRRadio
+#include "RCOMBO.H" // RERUN for CRCombo
+#include "RCOMBOX.H" //RERUN
+#include "RBUTTON.H" //RERUN for CRButton
+#include "REDIT.H" //RERUN for CREdit
+#include "RLISTBOX.H" //RERUN for CRListBox
+#include "RTOOLBAR.H" //RERUN for CRToolBar
+#include "TITLEBAR.H" //RERUN for TitleBar
+#include "MAINFRM.H" //RERUN for CMainFrame
 #include "MONOTXT.H"
 #undef	EmitSysErr
 #define EmitSysErr ExitMode().SayAndQuit(__FILE__ "%i ",__LINE__),Error::dummyproc
@@ -108,16 +118,16 @@ SaveData	Save_Data;
 DeadStream	Dead_Stream={0};
 char	date[]="Rowan Savegame: " __DATE__ ;
 char	date2[]="Rowan Savegame: " __DATE__ ;
-inline	CString	LoadResString(int resnum)
-{
-	CString s;
-	s.LoadString(resnum);
-	return s;
-};
+//inline	CString	LoadResString(int resnum)
+//{
+//	CString s;
+//	s.LoadString(resnum);
+//	return s;
+//};
 extern void GetDriverAndMode(int&,int&,int&,int&);
 //extern void Configure(bool,HWND); // RERUN defined in CONFIG.CPP
 #include "CONFIG.H"
-#include	"mfc/RESOURCE.H"
+#include	"RESOURCE.H"
 
 
 //------------------------------------------------------------------------------
@@ -1452,7 +1462,7 @@ Mass[]=
 		IDS_LBS
 	}
 };
-//RERUN void	SetFiltersFromSaveGame();
+
 void SaveData::SetUnits()
 {
 	if (Save_Data.gamedifficulty [GD_UNITS])
@@ -1470,8 +1480,6 @@ void SaveData::SetUnits()
 	}
 
 }
-
-//RERUN void	SetFiltersFromSaveGame(); //RERUN defined in MapFltrs.cpp
 
 void SaveData::InitPreferences(int wh)
 {
@@ -1582,7 +1590,8 @@ void SaveData::InitPreferences(int wh)
 		Configure(true, hWnd);
 	}
 #ifndef	MIG_DEMO_VER
-//RERUN	SetFiltersFromSaveGame();
+	CMainFrame* main=(CMainFrame*)AfxGetMainWnd();
+	main->m_toolbar1.SetFiltersFromSaveGame();
 #endif
 	//Don't put initialisation after this						//PD 11Feb99
 }	

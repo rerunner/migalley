@@ -91,16 +91,16 @@ ItemBasePtr WorldStuff::pMapItemHead;
 ///////////////////////////////////////////////
 #include "stdarg.h"
 
-#ifndef NDEBUG
+//#ifndef NDEBUG
 //RERUN extern CString		CSprintf(const char* format,...);
 
-inline	CString	LoadResString(int resnum)
-{
-	CString s;
-	s.LoadString(resnum);
-	return s;
-};
-#endif
+//inline	CString	LoadResString(int resnum)
+//{
+//	CString s;
+//	s.LoadString(resnum);
+//	return s;
+//};
+//#endif
 
 
 void	Persons4::StartUpMapWorld()

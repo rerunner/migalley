@@ -70,6 +70,11 @@ questions about this file may be asked at http://www.simhq.com/
 //				Machine gun sound is at sample queue position 1
 //------------------------------------------------------------------------------
 
+#include "WIN32_COMPAT.H"
+#include "MFC_stub.h"
+#include "DLGITEM.H"
+#include "RDIALOG.H"
+
 #include "_HARD.H"
 
 #include 	"DOSDEFS.H"
@@ -101,6 +106,9 @@ questions about this file may be asked at http://www.simhq.com/
 #include "STUB3D.H"
 #include	"REPLAY.H"
 #include "timeapi.h" // RERUN
+
+#include "RESOURCE.H"
+#include "MIGVIEW.H"
 
 #define		MEMORY_MIN	40000000				//32 meg
 #define		MIDI_NOTE_ON	0x90

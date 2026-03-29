@@ -6,18 +6,8 @@ if (WIN32)
 endif()
 
 add_executable(MigAlley
-    GeneratedResources.cpp
     MigCString.cpp
-    Comit_e.cpp
-    Damage.cpp
-    FRAG.CPP
-    Fullpane.cpp
     MigAlley.cpp
-    MRESULT.CPP
-    Sdetail.cpp
-    stdafx.cpp
-    WEAPONS.CPP
-    WinMig3D.CPP
     MIG.RC
 )
 
@@ -28,17 +18,18 @@ target_link_libraries(MigAlley PRIVATE ProjectDefaults)
 
 # Extra include dirs specific to MigAlley
 target_include_directories(MigAlley PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/../UI
+    ${CMAKE_CURRENT_SOURCE_DIR}/../RowanUI
     C:/DX81SDK/include
 )
 
 # Internal libraries
 target_link_libraries(MigAlley PRIVATE
+ -Wl,--start-group
     My3D
     Assembler
-    Overlay
     AI
     Bfields
+    Overlay
     Comms
     Files
     General
@@ -48,10 +39,13 @@ target_link_libraries(MigAlley PRIVATE
     Movecode
     Missman
     Hardware
+    RowanMFC
+    RowanAFX
+    RowanSheets
     CollisionsEtAl
     Model
     Aircraft
-    UI
+ -Wl,--end-group
 )
 
 # External libraries via find_package

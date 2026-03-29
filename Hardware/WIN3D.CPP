@@ -99,7 +99,7 @@ questions about this file may be asked at http://www.simhq.com/
 #include "AREATYPE.H"
 #include "PROF.H"
 #include "MILES.H" // RERUN
-#include "WinMig3D.H" //SDL
+#include "STUB3D.H" //SDL
 
 #include "XX_ScreenFlip_Vulkan.h" // Vulkan
 
@@ -348,7 +348,7 @@ void GetDriverAndMode(int& driverIndex,int& modeIndex,int& this_width,int& this_
 		 	if (driverRAM[i]>=800*600*3*2)
 				for (j=0,k=0;j<numModes;j++)
 					if (driverModes[j].driverNo-1==i &&
-						driverModes[j].displayBPP==16)
+						driverModes[j].displayBPP >= 16)
 					{
 						//k++;
 						if (driverModes[j].displayWidth==800 &&
@@ -365,7 +365,7 @@ void GetDriverAndMode(int& driverIndex,int& modeIndex,int& this_width,int& this_
 
 			for (j=0,k=0;j<numModes;j++)
 				if (driverModes[j].driverNo-1==i &&
-					driverModes[j].displayBPP==16)
+					driverModes[j].displayBPP >= 16)
 				{
 					//k++;
 					if (driverModes[j].displayWidth==640 &&
@@ -385,7 +385,7 @@ void GetDriverAndMode(int& driverIndex,int& modeIndex,int& this_width,int& this_
 	k=0;
 	for (j=0;j<numModes;j++)
 		if (driverModes[j].driverNo==0 &&
-			driverModes[j].displayBPP==16)
+			driverModes[j].displayBPP >= 16)
 		{
 			//k++;
 			if (driverModes[j].displayWidth==640 &&
@@ -403,7 +403,7 @@ void GetDriverAndMode(int& driverIndex,int& modeIndex,int& this_width,int& this_
 	k=0;
 	for (j=0;j<numModes;j++)
 		if (driverModes[j].driverNo==0 &&
-			driverModes[j].displayBPP==16)
+			driverModes[j].displayBPP >= 16)
 		{
 			//k++;
 			if (driverModes[j].displayWidth==512 &&
@@ -494,22 +494,56 @@ CON	direct_draw::direct_draw()
 	lockLevel=0;
 	gotShifts=false;
 
+	LPDIRECTDRAW pDDLocal = NULL;
 	lpDD=NULL;
 	lpD3D=NULL;
 	NumDrivers=0;
 	CurrDriver=0;
 	softpallookup=NULL;
 
+	RECT rect;
+	::GetWindowRect(Master_3d.winst,&rect);
+	winmode_w = rect.right - rect.left;
+	winmode_h = rect.bottom - rect.top;
+
 	//Search for a 3D capable DirectDraw hardware driver and create it.
-#if 0 // RERUN
 	dderrval = DirectDrawEnumerate(enumDDDrivers,(LPVOID)this);
-#else
-	dderrval = DD_OK;
-#endif
 
 	if (dderrval!=DD_OK)	lpDD=NULL;
 
 	NumModes=0;
+
+	if (NumDrivers!=0)
+	{
+		//Check each driver for supported display modes tha fit our 
+		//requirements
+
+		for (CurrDriver=0;CurrDriver<NumDrivers;CurrDriver++)
+		{
+			LPDIRECTDRAW pDD = NULL;
+			LPDIRECTDRAW2 pDD2 = NULL;
+
+			dderrval = DirectDrawCreate(&Drivers[CurrDriver].Guid,&pDD,NULL);
+
+			if (dderrval==DD_OK)
+			{
+				dderrval =
+				pDD->QueryInterface(IID_IDirectDraw2,(LPVOID *)&pDD2);
+
+				if (dderrval==DD_OK)
+				{
+//DEADCODE					EightBitOnly=FALSE;
+					dderrval =
+					pDD2->EnumDisplayModes(DDEDM_REFRESHRATES,NULL,(LPVOID)this,
+											(LPDDENUMMODESCALLBACK)&enumDisplayModes);
+
+					RELEASE(pDD2,dderrval);
+				}
+
+				RELEASE(pDD,dderrval);
+			}
+		}
+	}
 
 	for (q=0;q<NumDrivers && q<16;q++)
 	{
@@ -527,16 +561,47 @@ CON	direct_draw::direct_draw()
 	bFogVertexMode	= FALSE;									//PD 08Sep97
 	bFogTableMode	= FALSE;									//PD 08Sep97
 
-#if USE_SDL_PRESENTATION_PATH
-	lpDD = SDL_CreateRenderer(Master_3d.SdlWinInst, -1, 0);
-	if (lpDD == nullptr)
+	// Assume modern hardware capabilities for the Linux port.
+	primaryDoesAsyncBlt = TRUE;
+	primaryCanBltSysMem = TRUE;
+	bPrimaryDisplayDriverDoesHw3D = TRUE;
+	CanDoHardware3D = 1;
+	bButNotVeryWell	= FALSE;
+	bFogVertexMode	= TRUE;
+	bFogTableMode	= TRUE;
+
+	// Report 256MB of VRAM to satisfy the engine's internal texture caching requirements.
+	primaryDisplayDriverMem = 256 * 1024 * 1024;
+
+	// Use the stub interface to get the display mode and enumerate supported resolutions.
+	if (DirectDrawCreate(NULL, &pDDLocal, NULL) == DD_OK)
 	{
-		printf("SDL_CreateRenderer Failed!\n");
-		assert(1);
+		DDSURFACEDESC ddsdTemp;
+		ZeroMemory(&ddsdTemp, sizeof(DDSURFACEDESC));
+		pDDLocal->GetDisplayMode(&ddsdTemp);
+		winmode_w = ddsdTemp.dwWidth;
+		winmode_h = ddsdTemp.dwHeight;
+		winmode_bpp = ddsdTemp.ddpfPixelFormat.dwRGBBitCount;
+
+		CurrDriver = -1; // Explicitly tag enumerated modes as Primary/Stub
+		pDDLocal->EnumDisplayModes(DDEDM_REFRESHRATES, NULL, (LPVOID)this,
+								 (LPDDENUMMODESCALLBACK)&enumDisplayModes);
+		RELEASE(pDDLocal, dderrval);
 	}
-	
+	else
+	{
+		//RERUN  failsafe
+		winmode_w = 1024;
+		winmode_h = 758; 
+		winmode_bpp = 16;
+	}
+	CurrDriver = 0; 
+
+#if USE_SDL_PRESENTATION_PATH
+	auto* backend = backend_from_hwnd(Master_3d.winst);
+	lpDD = backend->renderer;
 	lpDD2 = lpDD;
-	winmode_bpp = 16; // winmode_w and winmode_h are set in MigAlley.cpp
+
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");  // make the scaled rendering look smoother.
 	SDL_RenderSetLogicalSize(lpDD, winmode_w, winmode_h);
 	Master_3d.SdlMigTexture = SDL_CreateTexture(lpDD2, SDL_PIXELFORMAT_RGB565,
@@ -544,14 +609,13 @@ CON	direct_draw::direct_draw()
 			winmode_w, winmode_h); //a single SDL_Texture that will represent the screen.
 #else
 	lpDD2 = lpDD = nullptr;
-	winmode_bpp = 16; // winmode_w and winmode_h are set in MigAlley.cpp
 
 	// Think of Vulkan as a presenter, not a renderer.
 	// 1) Create Vulkan instance, also
 	//    - Create swapchain
 	//    - Create one persistent VkImage for the game framebuffer
 
-	Vulkan_Init(Master_3d.SdlWinInst);
+	Vulkan_Init(Master_3d.winst);
 
 	CreateRenderPass(); // RERUN CHECKED OK
 	CreateFramebuffers();
@@ -561,7 +625,9 @@ CON	direct_draw::direct_draw()
 	Vulkan_CreatePipeline();
 
 	// 2) Create Vulkan surface from SDL window
-	Vulkan_CreateSDLSurface(Master_3d.SdlWinInst);
+	auto* backend = backend_from_hwnd(Master_3d.winst);
+    SDL_Window* theWin = backend->window;
+	Vulkan_CreateSDLSurface(theWin);
 #endif
 
 	for (q=0;q<NumModes && q<128;q++)
@@ -583,53 +649,49 @@ CON	direct_draw::direct_draw()
 
 	fullScreenRequired=false;
 
-	//first, check for a full screen 640x480 
-	//hardware accelerated mode NOT using primary
-	//display device (ie 3dfx)
+	// Use saved preferences as the target dimensions for mode matching.
+	DWORD dwWidth=gameSettings.m_dwWidth=Save_Data.displayW;
+	DWORD dwHeight=gameSettings.m_dwHeight=Save_Data.displayH;
 
-	BOOL bFullScreenRequested=gameSettings.m_bFullScreenMode;
-
-	if (bFullScreenRequested)
-	{
-		gameSettings.m_dwWidth=Save_Data.displayW;
-		gameSettings.m_dwHeight = Save_Data.displayH;
+	// If preferences are uninitialized, use captured desktop dimensions.
+	if (dwWidth <= 0 || dwHeight <= 0) {
+		dwWidth = winmode_w;
+		dwHeight = winmode_h;
 	}
 
-	DWORD dwWidth=gameSettings.m_dwWidth;
-	DWORD dwHeight=gameSettings.m_dwHeight;
-
-	if (bFullScreenRequested)
+	// Search for a hardware accelerated mode matching the preferred resolution and driver.
 	{
 		for (counter=0;counter<NumModes;counter++){
 			if (Modes[counter].Width==dwWidth &&
 				Modes[counter].Height==dwHeight &&
-				Modes[counter].Bpp==16 &&
+				Modes[counter].Bpp >= 16 &&
 				Modes[counter].Driver==Save_Data.dddriver){
 				//now check for hardware support in this mode
 				int possDriver=Modes[counter].Driver;
 				if (Drivers[possDriver].bHardware3D)
 				{
-					fullScreenRequired=true;
+					fullScreenRequired=gameSettings.m_bFullScreenMode;
+					CurrMode = counter;
 					break;
 				}
 			}
 		}
 	}
-	else counter=NumModes;
 
 	if (counter==NumModes)
 	{
-		if (bFullScreenRequested)
+		if (true) 
 		{
 			for (counter=0;counter<NumModes;counter++)
 			{
 				if (Modes[counter].Width==dwWidth &&
 					Modes[counter].Height==dwHeight &&
-					Modes[counter].Bpp==16 &&
+					Modes[counter].Bpp >= 16 &&
 					Modes[counter].Driver==-1 &&
 					bPrimaryDisplayDriverDoesHw3D)
 				{
-					fullScreenRequired=true;
+					fullScreenRequired=gameSettings.m_bFullScreenMode;
+					CurrMode = counter;
 					break;
 				}
 			}
@@ -640,12 +702,15 @@ CON	direct_draw::direct_draw()
 			for (counter=0;counter<NumModes;counter++){
 				if (Modes[counter].Width==winmode_w &&
 					Modes[counter].Height==winmode_h &&
-					Modes[counter].Bpp==winmode_bpp &&
-					Modes[counter].Driver==-1)
+					Modes[counter].Bpp >= winmode_bpp &&
+					Modes[counter].Driver==-1) {
+					CurrMode = counter;
 					break;
+				}
 			}
 			if (counter==NumModes)
 			{
+				// Default fallback
 				if (winmode_bpp==8){
 					if (counter==D3DAPP_MAXD3DMODES)
 						counter--;
@@ -653,11 +718,15 @@ CON	direct_draw::direct_draw()
 					Modes[counter].Height=winmode_h;
 					Modes[counter].Bpp=8;
 					Modes[counter].Driver=-1;
+					CurrMode = counter;
 					NumModes=counter+1;
 				}
 			}
 		}
 	}
+
+	// Store the final selected mode so the UI reflects current state.
+	if (CurrMode >= 0 && CurrMode < NumModes) ThisMode = Modes[CurrMode];
 
 	//Obtain a DirectDraw2 interface
 	if (lpDD!=NULL)
@@ -743,11 +812,12 @@ DES direct_draw::~direct_draw()
 
 	HRESULT	dderrval;
 
-	RELEASE_RENDERER(lpDD2, dderrval);
-
-	RELEASE_RENDERER(lpDD, dderrval);
-
+	//RELEASE_RENDERER(lpDD2, dderrval);
+	//RELEASE_RENDERER(lpDD, dderrval);
+	lpDD = lpDD2 = NULL; //RERUN
+#ifndef USE_SDL_PRESENTATION_PATH
 	Vulkan_Shutdown(); // RERUN
+#endif
 }
 
 //------------------------------------------------------------------------------
@@ -934,6 +1004,117 @@ BOOL FAR PASCAL
 direct_draw::enumDDDrivers(	GUID FAR* lpGUID,	LPSTR lpDriverDesc,
 							LPSTR lpDriverName, LPVOID lpContext)
 {
+#if 0 //RERUN not needed for SDL
+	DirectDDP		directddp;
+	HRESULT			dderrval;
+    LPDIRECTDRAW 	lpDD;
+    LPDIRECTDRAW2 	lpDD2;
+    DDCAPS 			DriverCaps,
+					HELCaps;
+
+	directddp=(DirectDDP)lpContext;
+
+	// A NULL GUID* indicates the DirectDraw HEL.
+
+	if (lpGUID!=NULL)
+	{
+		DDAppD3DDriver& driver=directddp->Drivers[directddp->NumDrivers];
+
+		// Create the DirectDraw device using this driver.  If it fails,
+		// just move on to the next driver.
+
+		dderrval=DirectDrawCreate(lpGUID,&lpDD,NULL);
+
+		if (dderrval!=DD_OK)	return (DDENUMRET_OK);
+
+		dderrval=lpDD->QueryInterface(IID_IDirectDraw2,(LPVOID *)&lpDD2);
+
+		if (dderrval!=DD_OK)
+		{
+			RELEASE(lpDD,dderrval);
+			return (DDENUMRET_OK);
+		}
+
+	    // Get the capabilities of this DirectDraw driver.  If it fails,
+    	// just move on to the next driver.
+
+	    ZeroMem(&DriverCaps, sizeof(DDCAPS));
+    	DriverCaps.dwSize = sizeof(DDCAPS);
+	    ZeroMem(&HELCaps, sizeof(DDCAPS));
+    	HELCaps.dwSize = sizeof(DDCAPS);
+
+		dderrval=lpDD2->GetCaps(&DriverCaps, &HELCaps);
+		
+		if (dderrval!=DD_OK)
+		{
+    	    RELEASE(lpDD2,dderrval);
+    	    RELEASE(lpDD,dderrval);
+    		return (DDENUMRET_OK);
+	    }
+
+    	// We have found a direct draw driver.  Add it to our list
+
+	   	memcpy(&driver.Guid,lpGUID, sizeof(GUID));
+   		lstrcpy(driver.About,lpDriverDesc);
+	   	lstrcpy(driver.Name,lpDriverName);
+
+		driver.bHardware3D=(DriverCaps.dwCaps&DDCAPS_3D)?TRUE:FALSE;
+		driver.bDoesAsyncBlt=(DriverCaps.dwCaps&DDCAPS_BLTQUEUE)?TRUE:FALSE;
+		driver.bCanBltSysMem=(DriverCaps.dwCaps&DDCAPS_CANBLTSYSMEM)?TRUE:FALSE;
+
+		ULong	totalmemavail,memAvail;
+
+		DDSCAPS	ddsCaps;
+		ddsCaps.dwCaps=DDSCAPS_VIDEOMEMORY;
+
+		dderrval=lpDD2->GetAvailableVidMem(&ddsCaps,&memAvail,NULL);
+
+		if (dderrval==DD_OK)			totalmemavail = memAvail;
+		else							totalmemavail = 0;
+
+		driver.vidMem=totalmemavail;
+
+	    directddp->NumDrivers++;
+
+    	RELEASE(lpDD2,dderrval);
+    	RELEASE(lpDD,dderrval);
+
+		if (directddp->NumDrivers==D3DAPP_MAXDDDRIVERS)
+			return (DDENUMRET_CANCEL);
+	}
+#else
+	DirectDDP directddp = (DirectDDP)lpContext;
+
+	// The stub in ddraw_stub.h calls this callback once with a NULL GUID
+	// for the primary SDL display. We'll treat this as our one and only driver.
+
+	if (directddp->NumDrivers >= D3DAPP_MAXDDDRIVERS)
+		return DDENUMRET_CANCEL;
+
+	DDAppD3DDriver& driver = directddp->Drivers[directddp->NumDrivers];
+
+	// We don't have a real GUID from SDL, so leave it empty.
+	ZeroMemory(&driver.Guid, sizeof(GUID));
+
+	// Copy the description and name from the stub.
+	strcpy(driver.About, lpDriverDesc);
+	strcpy(driver.Name, lpDriverName);
+
+	// Since we are porting to a modern backend (Vulkan/OpenGL via SDL),
+	// we can assume a capable hardware device.
+	driver.bHardware3D = TRUE;
+	driver.bDoesAsyncBlt = TRUE; // Assume modern GPUs can do this.
+	driver.bCanBltSysMem = TRUE;
+
+	// Let's assume a generous amount of VRAM. The game uses this to decide
+	// texture caching strategies. 256MB is a safe, large number for this old game.
+	driver.vidMem = 256 * 1024 * 1024;
+
+	directddp->NumDrivers++;
+
+	// We only have one "driver", so we can stop enumerating.
+	return DDENUMRET_CANCEL;
+#endif
     return (DDENUMRET_OK);
 }
 
@@ -953,6 +1134,151 @@ HRESULT WINAPI
 direct_draw::enumDisplayModes(	LPDDSURFACEDESC lpDDSurfaceDesc,
 								LPVOID			lpContext)
 {
+#if 0
+	direct_draw* directddp;
+
+	directddp=(direct_draw*)lpContext;
+
+	//Scan the supported mode list - this mode may already be supported
+	//by another driver
+
+//DEADCODE	if (directddp->EightBitOnly==TRUE)
+	if (lpDDSurfaceDesc->ddpfPixelFormat.dwRGBBitCount!=16)
+		return (DDENUMRET_OK);
+
+/*	if (lpDDSurfaceDesc->dwWidth<512 || (3*lpDDSurfaceDesc->dwWidth!=4*lpDDSurfaceDesc->dwHeight))
+		return DDENUMRET_OK;
+*/
+	for (int counter=0;counter<directddp->NumModes;counter++)
+	{
+		if (directddp->Modes[counter].Driver==directddp->CurrDriver &&
+			directddp->Modes[counter].Width==lpDDSurfaceDesc->dwWidth &&
+			directddp->Modes[counter].Height==lpDDSurfaceDesc->dwHeight && 
+			directddp->Modes[counter].Bpp==lpDDSurfaceDesc->ddpfPixelFormat.dwRGBBitCount)
+			return (DDENUMRET_OK);
+	}
+
+	//Throw away modes with color depths higher than 16-bits 
+	//(just to prevent mode list from overflowing in the
+	//graphics config. screen)
+
+//DEADCODE	if (lpDDSurfaceDesc->ddpfPixelFormat.dwRGBBitCount>16)
+//DEADCODE		return (DDENUMRET_OK);
+
+	//found a real 'new mode'
+
+	directddp->Modes[directddp->NumModes].Width=lpDDSurfaceDesc->dwWidth;
+	directddp->Modes[directddp->NumModes].Height=lpDDSurfaceDesc->dwHeight;
+	directddp->Modes[directddp->NumModes].Bpp=lpDDSurfaceDesc->ddpfPixelFormat.dwRGBBitCount;
+	directddp->Modes[directddp->NumModes].Driver=directddp->CurrDriver;
+
+	if (lpDDSurfaceDesc->ddpfPixelFormat.dwRGBBitCount!=8)
+	{
+		//Get RED bits/shift factor
+
+		DWORD	bits,shift,mask;
+
+		for (	shift=0,
+				mask =lpDDSurfaceDesc->ddpfPixelFormat.dwRBitMask;
+				!(mask & 1);
+				shift++,
+				mask>>=1);
+
+		for (	bits=0; mask & 1; bits++, mask>>=1);
+			
+		directddp->Modes[directddp->NumModes].dwRedBits = bits;
+		directddp->Modes[directddp->NumModes].dwRedShift = shift;
+
+		for (	shift=0,
+				mask =lpDDSurfaceDesc->ddpfPixelFormat.dwGBitMask;
+				!(mask & 1);
+				shift++,
+				mask>>=1);
+
+		for (	bits=0; mask & 1; bits++, mask>>=1);
+
+		directddp->Modes[directddp->NumModes].dwGreenBits = bits;
+		directddp->Modes[directddp->NumModes].dwGreenShift = shift;
+
+		for (	shift=0,
+				mask =lpDDSurfaceDesc->ddpfPixelFormat.dwBBitMask;
+				!(mask & 1);
+				shift++,
+				mask>>=1);
+
+		for (	bits=0; mask & 1; bits++, mask>>=1);
+
+		directddp->Modes[directddp->NumModes].dwBlueBits = bits;
+		directddp->Modes[directddp->NumModes].dwBlueShift = shift;
+	}
+	else
+	{
+		directddp->Modes[directddp->NumModes].dwRedBits =
+		directddp->Modes[directddp->NumModes].dwRedShift =
+
+		directddp->Modes[directddp->NumModes].dwGreenBits =
+		directddp->Modes[directddp->NumModes].dwGreenShift =
+
+		directddp->Modes[directddp->NumModes].dwBlueBits =
+		directddp->Modes[directddp->NumModes].dwBlueShift = 0;
+	}
+
+	directddp->NumModes++;
+
+	if (directddp->NumModes==D3DAPP_MAXD3DMODES)
+		return (DDENUMRET_CANCEL);
+
+#else
+	direct_draw* directddp = (direct_draw*)lpContext;
+
+	// Prevent buffer overflow.
+	if (directddp->NumModes >= D3DAPP_MAXD3DMODES)
+		return DDENUMRET_CANCEL;
+
+	// Check for and filter out duplicate modes.
+	for (int i = 0; i < directddp->NumModes; i++)
+	{
+		if (directddp->Modes[i].Driver == directddp->CurrDriver &&
+			directddp->Modes[i].Width == lpDDSurfaceDesc->dwWidth &&
+			directddp->Modes[i].Height == lpDDSurfaceDesc->dwHeight && 
+			directddp->Modes[i].Bpp == lpDDSurfaceDesc->ddpfPixelFormat.dwRGBBitCount)
+		{
+			return DDENUMRET_OK; // Already have this mode, skip.
+		}
+	}
+
+	// Add the new mode to our list.
+	direct_draw::D3DAppD3DModes& mode = directddp->Modes[directddp->NumModes];
+	mode.Width = lpDDSurfaceDesc->dwWidth;
+	mode.Height = lpDDSurfaceDesc->dwHeight;
+	mode.Bpp = lpDDSurfaceDesc->ddpfPixelFormat.dwRGBBitCount;
+	mode.Driver = directddp->CurrDriver;
+
+	// RERUN: Bitmask info is now provided by ddraw_stub.h.
+	// Convert masks to bit counts and shifts.
+	auto countSetBitsAndShift = [](DWORD mask, DWORD& bits, DWORD& shift) {
+		if (mask == 0) {
+			bits = 0; shift = 0; return;
+		}
+		DWORD temp_mask = mask;
+		shift = 0;
+		while ((temp_mask & 1) == 0) {
+			temp_mask >>= 1;
+			shift++;
+		}
+		bits = 0;
+		while (temp_mask & 1) {
+			temp_mask >>= 1;
+			bits++;
+		}
+	};
+
+	countSetBitsAndShift(lpDDSurfaceDesc->ddpfPixelFormat.dwRBitMask, mode.dwRedBits, mode.dwRedShift);
+	countSetBitsAndShift(lpDDSurfaceDesc->ddpfPixelFormat.dwGBitMask, mode.dwGreenBits, mode.dwGreenShift);
+	countSetBitsAndShift(lpDDSurfaceDesc->ddpfPixelFormat.dwBBitMask, mode.dwBlueBits, mode.dwBlueShift);
+
+	directddp->NumModes++;
+#endif
 	return (DDENUMRET_OK);
 }
 
@@ -996,7 +1322,30 @@ void direct_draw::GetModes(DirectD& dd)
 //------------------------------------------------------------------------------
 BOOL direct_draw::SetMode(int mode)
 {
-	return FALSE;
+	if (mode < 0 || mode >= NumModes) return FALSE;
+
+	CurrMode = mode;
+	ThisMode = Modes[mode];
+
+	// Update the global resolution variables used by the 3D engine for its
+	// internal rendering math and software backbuffer allocation.
+	winmode_w = (SWord)ThisMode.Width;
+	winmode_h = (SWord)ThisMode.Height;
+	winmode_bpp = (SWord)ThisMode.Bpp;
+
+	// Commit the selection to persistent preferences.
+	Save_Data.displayW = (SWord)ThisMode.Width;
+	Save_Data.displayH = (SWord)ThisMode.Height;
+	Save_Data.dddriver = ThisMode.Driver;
+
+	// Re-initialize the presentation layer for the active window handle
+	// (Master_3d.winst) and its physical dimensions.
+#ifndef USE_SDL_PRESENTATION_PATH
+	Vulkan_Shutdown();
+	if (!Vulkan_Init(Master_3d.winst)) return FALSE;
+#endif
+
+	return TRUE;
 }
 
 static TWODEFFECT tdeffect=TDE_UNIFORM;

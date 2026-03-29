@@ -61,6 +61,10 @@ questions about this file may be asked at http://www.simhq.com/
 */
 
 #include "_INPU.H"
+#include "WIN32_COMPAT.H" //RERUN
+#include "MFC_stub.h"
+#include "DLGITEM.H"
+#include "RDIALOG.H"
 
 //------------------------------------------------------------------------------
 //Filename       analogue.cpp
@@ -80,10 +84,22 @@ questions about this file may be asked at http://www.simhq.com/
 #define DIRECTINPUT_VERSION 0x700 // RERUN
 #include	"dinput_stub.h"
 #include	"STUB3D.H"
+
+#include "RSTATIC.H" // RERUN for CRStatic
+#include "RRADIO.H" // RERUN for CRRadio
+#include "RCOMBO.H" // RERUN for CRCombo
+#include "RCOMBOX.H" //RERUN
+#include "RBUTTON.H" //RERUN for CRButton
+#include "REDIT.H" //RERUN for CREdit
+
+#include "RESOURCE.H"
+#include "REDTBT.H" //RERUN for CREdtBt
 #include	"SCONTROL.H"
 #include	"MYERROR.H"
 #include "MONOTXT.H"
 #include "CSTRING.H"
+
+#include "MIGVIEW.H" //RERUN for GetFullPanel
 
 //#include	<initguid.h>
 
@@ -328,13 +344,15 @@ Bool	Analogue::Initialise(int HWNDw,int HINSTANCEi)
     readytopoll=true;
     return TRUE;
 }
+#if 0 // RERUN Included already through RDIALOG.H
 inline	CString	LoadResString(int resnum)
 {
 	CString s;
 	s.LoadString(resnum);
 	return s;
 };
-#include	"mfc/RESOURCE.H"
+#endif
+
 //------------------------------------------------------------------------------
 //Procedure		LoadGame
 //Author		Jim Taylor

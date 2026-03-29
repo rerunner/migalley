@@ -67,6 +67,10 @@ questions about this file may be asked at http://www.simhq.com/
 //Date           Mon 8 Jun 1998
 //Description    
 //------------------------------------------------------------------------------
+#include "WIN32_COMPAT.H"
+#include "MFC_stub.h"
+#include "DLGITEM.H"
+#include "RDIALOG.H"
 
 #include "_HARD.H"
 #include "CSTRING.H" //RERUN
@@ -83,7 +87,7 @@ questions about this file may be asked at http://www.simhq.com/
 #include	"WORLDINC.H"
 #include	"SAVEGAME.H"
 #include	"RCHATTER.H"
-#include	"mfc/RESOURCE.H"
+#include	"RESOURCE.H"
 #include	"RADIOXTR.G"
 #include	"MESSENGN.H"
 #include	"FLYINIT.H"

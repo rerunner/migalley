@@ -96,7 +96,7 @@ questions about this file may be asked at http://www.simhq.com/
 #include	"GLOBREFS.H"
 #include	"STUB3D.H"
 #include	"CTIMEOUT.H"
-#include	"mfc/RESOURCE.H"
+#include	"RESOURCE.H"
 #include	"REPLAY.H"
 #include	"BSTREAM.H"
 #include	"RCHATTER.H"

@@ -68,6 +68,11 @@ questions about this file may be asked at http://www.simhq.com/
 //Description    
 //------------------------------------------------------------------------------
 
+#include "WIN32_COMPAT.H"
+#include "MFC_stub.h"
+#include "DLGITEM.H"
+#include "RDIALOG.H"
+
 #include "_HARD.H"
 #include "CSTRING.H" //RERUN
 //SDL #include "ddraw.h"
@@ -80,7 +85,7 @@ questions about this file may be asked at http://www.simhq.com/
 #include	"OVERLAY.H"
 #include "REPLAY.H" // RERUN
 #include "FLYMODEL.H" // RERUN 
-#include "mfc/RESOURCE.H" // RERUN
+#include "RESOURCE.H" // RERUN
 
 MessageBuffer	_MsgBuffer;
 

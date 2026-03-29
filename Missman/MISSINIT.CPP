@@ -91,10 +91,6 @@ questions about this file may be asked at http://www.simhq.com/
 #include "SAVEGAME.H"
 #include "PERSONS2.H"
 
-// RERUN HACK START
-#define QUICKQUICKQUICK //RERUN
-#include "SQUICK1.H" //RERUN
-// RERUN HACK END
 
 Bool	beentomap;												//RDH 29Nov96
 MATHABLE	(Debrief::Types);
@@ -3370,15 +3366,6 @@ void	Campaign::CampaignInit()
 		case MissMan::SO51_CAMPAIGN:
 		{
 			playersquadron = SQ_F86A;
-			break;
-		}
-		case MissMan::SCRAMBLECAMPAIGN:
-		{
-			// RERUN HACK START
-			playersquadron = (SWord)CSQuick1::quickmissions[CSQuick1::currquickmiss].plac;
-			// Reason, when Mission Manager loads a quick mission, it is set to SCRAMBLECAMPAIGN
-			// but the player squadron should be what was selected in the quick mission screen.
-			// RERUN HACK END
 			break;
 		}
 	}
