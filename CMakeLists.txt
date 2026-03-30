@@ -19,7 +19,7 @@ add_library(ProjectDefaults INTERFACE)
 if(NOT MSVC)
     # Force 32-bit build on GCC/Clang, and disable enum comparison warnings
     message(STATUS "Forcing 32-bit build: adding -m32 to CMAKE_CXX_FLAGS")
-    target_compile_options(ProjectDefaults INTERFACE -m32 -fms-extensions -Wno-enum-compare -DUSE_SDL_PRESENTATION_PATH)
+    target_compile_options(ProjectDefaults INTERFACE -m32 -fms-extensions -Wno-enum-compare)
     target_link_options(ProjectDefaults INTERFACE -m32)
 endif()
 

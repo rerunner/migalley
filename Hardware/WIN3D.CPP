@@ -93,6 +93,7 @@ questions about this file may be asked at http://www.simhq.com/
 #include	"HDATA.H"
 #include	"HARDPASM.H"
 #include	"WIN3D.H"
+#include	"FULLPANE.H"
 #include "MigOpenGL.h"
 #include	"GAMESET.H"
 #include	"TILEMAKE.H"
@@ -597,38 +598,48 @@ CON	direct_draw::direct_draw()
 	}
 	CurrDriver = 0; 
 
-#if USE_SDL_PRESENTATION_PATH
-	auto* backend = backend_from_hwnd(Master_3d.winst);
-	lpDD = backend->renderer;
-	lpDD2 = lpDD;
+	// Determine at runtime whether to use the SDL presentation path (for UI) 
+	// or the Vulkan path (for the 3D World in the simulator).
+	if (!RFullPanelDial::in3d)
+	{
+		// UI/Map Mode: Use the existing SDL renderer from the window backend.
+		auto* backend = backend_from_hwnd(Master_3d.winst);
+		if (backend && backend->renderer)
+		{
+			lpDD = backend->renderer;
+			lpDD2 = lpDD;
 
-	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");  // make the scaled rendering look smoother.
-	SDL_RenderSetLogicalSize(lpDD, winmode_w, winmode_h);
-	Master_3d.SdlMigTexture = SDL_CreateTexture(lpDD2, SDL_PIXELFORMAT_RGB565,
-			SDL_TEXTUREACCESS_STREAMING,
-			winmode_w, winmode_h); //a single SDL_Texture that will represent the screen.
-#else
-	lpDD2 = lpDD = nullptr;
+			SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+			SDL_RenderSetLogicalSize(lpDD, winmode_w, winmode_h);
+			Master_3d.SdlMigTexture = SDL_CreateTexture(lpDD2, SDL_PIXELFORMAT_RGB565,
+					SDL_TEXTUREACCESS_STREAMING,
+					winmode_w, winmode_h);
+		}
+	}
+	else
+	{
+		// 3D Simulator Mode: Initialize Vulkan.
+		lpDD2 = lpDD = nullptr;
 
-	// Think of Vulkan as a presenter, not a renderer.
-	// 1) Create Vulkan instance, also
-	//    - Create swapchain
-	//    - Create one persistent VkImage for the game framebuffer
+		// Conflict Resolution: SDL_Renderer and Vulkan cannot coexist on the same window surface.
+		// If a renderer was previously created for this window (e.g. by MFC_stub), we must destroy it
+		// to allow Vulkan to take exclusive control over the window's swapchain.
+		auto* backend = backend_from_hwnd(Master_3d.winst);
+		if (backend && backend->renderer)
+		{
+			SDL_DestroyRenderer(backend->renderer);
+			backend->renderer = nullptr;
+		}
 
-	Vulkan_Init(Master_3d.winst);
-
-	CreateRenderPass(); // RERUN CHECKED OK
-	CreateFramebuffers();
-	createDescriptorSetLayoutAndSampler();
-    createPipelineLayout();
-
-	Vulkan_CreatePipeline();
-
-	// 2) Create Vulkan surface from SDL window
-	auto* backend = backend_from_hwnd(Master_3d.winst);
-    SDL_Window* theWin = backend->window;
-	Vulkan_CreateSDLSurface(theWin);
-#endif
+		Vulkan_Init(Master_3d.winst);
+		CreateRenderPass();
+		CreateFramebuffers();
+		createDescriptorSetLayoutAndSampler();
+		createPipelineLayout();
+		Vulkan_CreatePipeline();
+		
+		// Note: Vulkan_Init internally handles surface creation via Vulkan_CreateSDLSurface.
+	}
 
 	for (q=0;q<NumModes && q<128;q++)
 	{

@@ -339,10 +339,13 @@ void	MigDisplay::XX_SetGraphicsMode()
 #include "XX_ScreenFlip_Vulkan.h"
 void	MigDisplay::XX_ScreenFlip()
 {
-#ifndef USE_SDL_PRESENTATION_PATH
+if (RFullPanelDial::in3d)
+{
 	_DirectDraw::lpDirectDD->XX_ScreenFlip_Vulkan(DD.lpDDSBack);
 	return;
-#endif
+}
+else
+{
 	RECT 	winrect; //RERUN
 	SDL_Rect 	rect;
 	DDBLTFX	ddbltfx;
@@ -415,7 +418,7 @@ void	MigDisplay::XX_ScreenFlip()
 	if (SDL_RenderClear(DD.lpDD2) != DD_OK)	{printf("Error: %d\n", SDL_GetError());}
 	if (SDL_RenderCopy(DD.lpDD2, Master_3d.SdlMigTexture, NULL, NULL) != DD_OK)	{printf("Error: %d\n", SDL_GetError());}
 	SDL_RenderPresent(DD.lpDD2);
-	
+}
 }
 
 

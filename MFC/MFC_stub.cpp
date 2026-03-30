@@ -967,10 +967,7 @@ BOOL CWnd::Create(
         lpszWindowName ? lpszWindowName : "",
             rect.left, rect.top,
             rect.right - rect.left, rect.bottom - rect.top,
-        SDL_WINDOW_SHOWN | SDL_WINDOW_BORDERLESS
-#if USE_SDL_PRESENTATION_PATH
-        | SDL_WINDOW_VULKAN
-#endif
+        SDL_WINDOW_SHOWN | SDL_WINDOW_BORDERLESS | SDL_WINDOW_VULKAN
     );
 
     //SDL_Renderer* ren = SDL_CreateRenderer(win, -1, 0);
@@ -3748,7 +3745,7 @@ BOOL CFrameWnd::LoadFrame(UINT nIDResource, DWORD dwDefaultStyle, CWnd* pParentW
         SDL_WINDOWPOS_CENTERED,
         SDL_WINDOWPOS_CENTERED,
         1280, 960,
-        SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE
+        SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_VULKAN
     );
 
     if (!backend.window)
