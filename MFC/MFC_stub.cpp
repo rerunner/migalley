@@ -3044,6 +3044,7 @@ void AFXAPI DDX_Control(CDataExchange* pDX, int nIDC, CWnd& rControl)
                     const ButtonMetadata& meta = g_buttonMetadataMap[dlgID][nIDC];
                     CRButton* pButton = dynamic_cast<CRButton*>(&rControl);
                     CRRadio* pRadio = dynamic_cast<CRRadio*>(&rControl);
+                    CRStatic* pStatic = dynamic_cast<CRStatic*>(&rControl);
 
                     if (pButton) {
                         pButton->SetButtonMetadata(meta.icon_enum, meta.icon_name.c_str());
@@ -3055,6 +3056,11 @@ void AFXAPI DDX_Control(CDataExchange* pDX, int nIDC, CWnd& rControl)
                         // RERUN: Apply the length as ColumnWidth if present in metadata
                         if (meta.length > 0) {
                             pRadio->SetColumnWidth(meta.length);
+                        }
+                    } else if (pStatic) {
+                        // RERUN: Apply font number from metadata if present
+                        if (meta.icon_enum != 0) {
+                            pStatic->SetFontNum(meta.icon_enum);
                         }
                     } else {
                         // RERUN: Improved warning message for unhandled control types with metadata.
@@ -3541,6 +3547,7 @@ BOOL CDialog::Create(int id, CWnd* pParent)
                 case 222: fallback = "Authorisation"; break;
                 case 220: fallback = "Bases"; break;
                 case 200: fallback = "Mission Folder"; break;
+                case 998: fallback = "Credits"; break;
             }
             if (fallback) {
                 SetWindowText(fallback);

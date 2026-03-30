@@ -105,6 +105,8 @@ SmackBuf* sbuf = nullptr;
 Smack* smk=nullptr;
 int			Xoff=0;
 int			Yoff=0;
+static int Woff=0;
+static int Hoff=0;
 int			wait=0;
 
 /*
@@ -150,6 +152,8 @@ Smack* OpenSmack(FileNum filenumber,int win, int x, int y,int w, int h)
 
 	Xoff=x;
 	Yoff=y;
+	Woff=w;
+	Hoff=h;
 	wait=0;
 	last_frame_time = 0;
 
@@ -322,11 +326,23 @@ UWord	DoSmack(int h)
 			// Use Xoff/Yoff for position (or center if -1).
 			int dstX = Xoff;
 			int dstY = Yoff;
+			int dstW = frame_width;
+			int dstH = frame_height;
 
-			if (dstX == -1) dstX = (winW - frame_width) / 2;
-			if (dstY == -1) dstY = (winH - frame_height) / 2;
+			if (Woff == -1)
+			{
+				dstW = winW;
+				dstH = (frame_height * winW) / frame_width;
+				dstX = 0;
+				dstY = (winH - dstH) / 2;
+			}
+			else
+			{
+				if (dstX == -1) dstX = (winW - frame_width) / 2;
+				if (dstY == -1) dstY = (winH - frame_height) / 2;
+			}
 
-			SDL_Rect dstRect = { dstX, dstY, frame_width, frame_height };
+			SDL_Rect dstRect = { dstX, dstY, dstW, dstH };
 			
 			// By not clearing the renderer, the background image is preserved.
 			// The video frame is drawn on top of it.

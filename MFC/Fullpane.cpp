@@ -153,7 +153,7 @@ questions about this file may be asked at http://www.simhq.com/
 
 #include "SMACK.H" //RERUN
 
-int	introsmk=1;
+int	introsmk=0;
 bool	RFullPanelDial::incomms=false,RFullPanelDial::in3d=false,RFullPanelDial::specialevent=false;
 RFullPanelDial::GameStates	RFullPanelDial::gamestate=RFullPanelDial::TITLE;
 
@@ -1915,6 +1915,8 @@ void RFullPanelDial::LaunchSmacker(int dialID,FileNum smackerID)
 	}
 }
 
+static uint32_t s_screenLaunchTick = 0;
+
 void RFullPanelDial::OnTimer(UINT nIDEvent) 
 {
 	// Nick the Enum loop thing
@@ -1931,16 +1933,28 @@ void RFullPanelDial::OnTimer(UINT nIDEvent)
 #ifdef MIG_DEMO_VER
 			if (!_DPlay.PossibleLobby)
 #endif
-				CloseSmack();
-
-
-			OnLButtonUp(0, CPoint (0,0)) ;
+			{
+				if (m_currentscreen == &credits)
+				{
+					// Loop intro video for credits to match the long names list
+					LaunchSmacker(0, FIL_SMACK_GAMEINTRO);
+				}
+				else
+				{
+					CloseSmack();
+					OnLButtonUp(0, CPoint (0,0)) ;
+				}
+			}
 		}
 	}
 }
 
 void RFullPanelDial::OnLButtonUp(UINT nFlags, CPoint point) 
 {
+	// RERUN: Ignore clicks for the first 500ms to prevent click-through from the menu launch
+	if (SDL_GetTicks() - s_screenLaunchTick < 500)
+		return;
+
 	if (m_currentscreen->textlists[0].text==0 && !_DPlay.PossibleLobby) 
 	{
 		OnSelectRlistbox(0,0);
@@ -2026,6 +2040,7 @@ void RFullPanelDial::LaunchScreen(FullScreen * pfullscreen)
 	PositionRListBox();
 	localnote=NULL;
 	enablepanelselfdrawstate=false;
+	s_screenLaunchTick = SDL_GetTicks();
 	if (m_currentscreen->InitProc) (this->*m_currentscreen->InitProc)();
 	enablepanelselfdrawstate=false;
 	if (closedsmack) 
@@ -2154,6 +2169,7 @@ void RFullPanelDial::PositionRListBox()
 	prlistbox->Clear();
 	int seperation=100;
 
+	if (m_currentscreen->textlists[0].text != 0)
 	if (m_currentscreen->listalign & FullScreen::Align::HORIZ)
 	{	// a horizontal listbox...
 		// spacing depends on resolution...
@@ -2177,13 +2193,17 @@ void RFullPanelDial::PositionRListBox()
 			prlistbox->AddString(thestring,0);
 		}
 	}
-	// move to correct position.
-	prlistbox->Shrink();
-	prlistbox->ResizeToFit();
-	CRect rect;
-	prlistbox->GetClientRect(rect);
-	CPoint bottomright=rect.BottomRight();
-	CPoint topleft(m_currentscreen->resolutions[m_currentres].ListX,m_currentscreen->resolutions[m_currentres].ListY);
+
+	if (m_currentscreen->textlists[0].text != 0)
+	{
+		prlistbox->ShowWindow(SW_SHOW);
+		// move to correct position.
+		prlistbox->Shrink();
+		prlistbox->ResizeToFit();
+		CRect rect;
+		prlistbox->GetClientRect(rect);
+		CPoint bottomright=rect.BottomRight();
+		CPoint topleft(m_currentscreen->resolutions[m_currentres].ListX,m_currentscreen->resolutions[m_currentres].ListY);
 	switch (m_currentscreen->listalign&0xF8)
 	{
 		case FullScreen::Align::TOP:
@@ -2213,6 +2233,11 @@ void RFullPanelDial::PositionRListBox()
 			break;
 	}
 	prlistbox->MoveWindow(topleft.x,topleft.y,bottomright.x,bottomright.y);
+	}
+	else
+	{
+		prlistbox->ShowWindow(SW_HIDE);
+	}
 }
 
 // some utility procedures for launching map or 3d
@@ -2249,6 +2274,9 @@ Bool RFullPanelDial::ConfirmExit(FullScreen*&fs)
 
 Bool RFullPanelDial::IntroSmackInitForCredits()
 {
+	UpdateSize();
+	if (introsmk==0)
+		Master_3d.SmallWin();
 	LaunchSmacker(0,FIL_SMACK_GAMEINTRO);
 	LaunchDial(new 	CCredits(IDS_CT_PROGRAMMINGTEAMTITLE),1);
 	return TRUE;
@@ -2286,7 +2314,11 @@ Bool RFullPanelDial::IntroSmackInit()
 	if (introsmk==0)
 		Master_3d.SmallWin();
 	SetCursorPos(10,10);
-	LaunchSmacker(0,FIL_SMACK_GAMEINTRO);
+
+	// RERUN: Call OpenSmack directly with -1 width/height to signal full-width stretching
+	OpenSmack(FIL_SMACK_GAMEINTRO, (int)m_hWnd, 0, 0, -1, -1);
+	m_timerID = SetTimer(2398, 1, NULL);
+
 	return TRUE;
 }
 void RFullPanelDial::ResetLoadGameOption()
