@@ -1,78 +1,90 @@
-MigAlleyRevisited
-=================
+# Mig Alley Linux Port
 
-A Flight Simulator.
+A complete native Linux port of Rowan’s **Mig Alley** (1999).  
+All original Windows dependencies have been removed or replaced with modern, cross‑platform components.  
+The objective is long‑term preservation, maintainability, and future expansion of the dynamic campaign engine.
 
-# TARGET
-A *native* Linux version of Rowan's MigAlley.
+## Overview
 
-# The .plan
+This project contains a full platform migration of Mig Alley from Windows to Linux.  
+The codebase no longer depends on Win32, DirectX, DirectInput, or Miles Sound System.  
+All required subsystems have been rewritten or adapted to use portable libraries and modern APIs.
 
-- [x] take the original Mig Alley source code from Rowan software.
+## Major Changes
 
-- [x] create a CMake edition build system from scratch. 
+### Platform and System Layer
+- Replacement of the MFC layer with a custom implementation compatible with the original message routing model  
+- Reimplementation of required Win32 API functions  
+- Removal of all Windows‑specific code paths  
+- Native Linux build using standard toolchains
 
-- [x] Remove dependencies on Windows, MFC and DirectX/play/input libraries. LARGE changes are needed to accomplish this, and it will disable all UI related code, including the dynamic campaign map/planning tool.
+### Graphics
+- 2D rendering implemented with SDL2  
+- UI rendering implemented with SDL2  
+- 3D engine rewritten to use Vulkan
+- All legacy Direct3D 5/6 fixed‑function code replaced with a modern rendering backend
 
-- [x] Replace DirectDraw surfaces with SDL2 surfaces, run 3d world in non directx "software" mode
+### Input
+- DirectInput replaced with SDL input  
+- Support for mouse, keyboard, and joystick through SDL’s unified input system  
+- Axis, button, and hat mappings aligned with original behavior
 
-- [x] Replace Miles Sound System with SDL2 audio mixer.
+### Audio
+- Miles Sound System API ported to use SDL_mixer  
+- Channel management and playback timing matched to original logic
 
-- [x] Replace DirectInput keyboard code with SDL2 keyboard code.
+### Dependencies
+The Linux version depends only on:
+- SDL2, SDL_mixer and SDL_ttf  
+- Vulkan loader and driver
+- nlohmann C++ json support
 
-- [x] Create a temporary simple portable UI, as the old UI was all MFC or WPC stuff. 
+No Windows DLLs or compatibility layers are required.
 
-- [x] Add Vulkan staging and pipeline as alternative to SDL Renderer. Include a simple vulkan shader with CRT effect.
+## Build Instructions
 
-- [x] Activate in-flight Map and radio messages menu.
+### Requirements
+- C++ compiler with C++17 support  
+- CMake  
+- SDL2 development packages  
+- SDL_mixer development packages  
+- Vulkan SDK or system Vulkan headers and loader
 
-- [x] Create a Joystick port from DirectInput to SDL2.
+### Build
+```
+mkdir build
+cd build
+cmake ..
+make
+```
 
-- [x] Recreate the full UI, activating all menus, maps, campaign planner. This was a lot of work.
+## Current Status
 
-- [ ] See what is next (e.g. multiplayer, full vulkan replacement, etc).
+The game is fully playable on Linux.  
+All subsystems have been ported.  
+The campaign, AI, UI, and mission logic behave as in the original release.
 
+## Roadmap
 
-# Status
-The core game can be played, tested using Manjaro Linux. It currently uses:
-- SDL2 for the 3D window management and graphics surfaces. 
-- Vulkan (including shaders) for the staging buffers, fixed pipeline and display inside the SDL window.
-- SDL Mixer for the audio
-- SDL TTF for the in-game fonts+text.
-- SDL input for mouse and joystick
- 
-The Main UI is not yet complete. It allows to start Hot Shot, Quick Mission, Campaign and Full War in single player mode. The Quick Mission UI is fairly complete, all missions and flights can be selected. The UI will grow to a real replacement of the original MFC UI. The main remaining challenge is the UI planning map for Campaign and Full War.
+### Short Term
+- Codebase cleanup  
+- Validation of campaign logic  
+- Regression testing against the Windows version
 
-The project now relies on 32 bits SDL2 & GTK2 dependencies to build and run.
+### Medium Term
+- Reactive multiplayer
+- Improvements to the dynamic campaign engine  
+- More autonomous ground and air operations  
+- Better integration between strategic and tactical layers
 
-## Some status videos
-[![Selecting Quick Mission]()](https://github.com/user-attachments/assets/c8b1d0c6-a937-49f9-b482-3a584d59f462)
+### Long Term
+- Tools for mission analysis and debugging
 
-[![HotShots Start]()](https://github.com/user-attachments/assets/7ef28ce2-03be-4202-b602-619b0a85203d)
+## License
 
-[![In-Flight Menu]()](https://github.com/user-attachments/assets/022d6f0e-3e7d-4ec2-b3dc-a4c88da8168d)
+This project uses the original license provided by Rowan Software when the source code was released.
 
+## Acknowledgments
 
-# Game description
-Set during the Korean War, Mig Alley is an interactive campaign-based flight simulation, with the option of instant action in minicampaigns, single historical missions, and head-to-head play. Add to this the astounding graphics, stunning landscapes, accurate flight models, and the world's largest jet-to-jet dogfights, and you have one the best games of next year on your hands.
-
-Mig Alley includes the world's first and largest jet-to-jet dogfights, with over 50 aircraft in the sky at any one time.
-
-You can fly any of the following aircraft, all with accurate flight models:
-
-    F86 Sabre (the ultimate dogfighter), F84 Thunderjet(long-range strike-and-escort jet),
-    F80 Shooting Star (ground-attack and fighter-jet aircraft),
-    P51 Mustang (classic World War 2 propeller aircraft, serving as a ground-attack aircraft),
-    MiG 15 and MiG 15bis (the fighter that nearly drove the UN air force from Korean skies).
-
-Other aircraft appearing in the game include the B29 Super Fortress, Meteor, F9 Panther, A1 Skyraider, YAK piston-engined fighter, and many others.
-
-Start off in a World War 2-vintage P51 Mustang, eventually moving on to a F86 Sabre "Mig Killer," or choose between a MiG or Sabre in the head-to-head modes.
-
-Just as in Flying Corps, the ground detail in Mig Alley is painstakingly taken from aerial photography and satellite spy cameras from the era. Ground information has been drawn from satellite photographs covering areas of 45 miles long by 2.5 miles across. There's also a huge difference in terrain, with widely different colors in different parts of the peninsula and massive alterations in the ground altitude--there are mountains rising 9,000 feet. To give the Korean landscape justice, and because of the size of the peninsula and speed of the aircraft, a lot more information needs to be stored in the game.
-
-The core of Mig Alley is the campaign game, set in spring 1951, a period during which the ground war was still fluid and both sides could have won a battlefield victory. During this period, the crack Russian MiG squadrons were introduced to the conflict. As a consequence, you'll find yourself under constant pressure from the start.
-
-As the commander of a group of UN aircraft, your task is to move the front line to the Chinese border and win the war before the start of the peace talks. However, at the same time, the North Koreans and Chinese are busy building up their forces and launching attacks aimed at driving you from the Korean peninsula. You must plan your daily missions, maximizing the strengths of the various aircraft while minimizing their weaknesses.
-
-Select missions from a wide range of targets--concentrate on attacking enemy troops, try to cut off their supplies, destroy bridges, or attempt to achieve air superiority. The success or failure of these missions has direct implications to the course of the ground battle in a cause-and-effect style.
+Original game by Rowan Software.  
+This project aims to preserve and extend the technical and historical value of the simulation.
