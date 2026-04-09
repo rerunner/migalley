@@ -118,6 +118,7 @@ protected:
 	virtual BOOL OnInitDialog();
 	afx_msg void OnClickedFileok();
 	afx_msg void OnUpdateSavename();
+	afx_msg void OnOK();
 	DECLARE_EVENTSINK_MAP()
 	//}}AFX_MSG
 

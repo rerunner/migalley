@@ -2427,7 +2427,7 @@ Bool RFullPanelDial::QuickMissionBlue()
 			}
 	DialBox*	ND = NULL;
 
-	DialBox firstBox(FIL_NULL, new QuickMissionPanel);
+	DialBox firstBox(FIL_NULL, new QuickMissionPanel, EDGES_NOSCROLLBARS_NODRAGGING);
 
 	DialBox emptyBox(FIL_NULL, new EmptyChildWindow, EDGES_NOSCROLLBARS_NODRAGGING);
 
@@ -2473,7 +2473,7 @@ Bool RFullPanelDial::QuickMissionRed()
 	DialBox*	ND=NULL;
 
 	// 1. First DialBox must be an lvalue
-	DialBox firstBox(FIL_NULL, new QuickMissionPanel);
+	DialBox firstBox(FIL_NULL, new QuickMissionPanel, EDGES_NOSCROLLBARS_NODRAGGING);
 
 	DialBox emptyBox(FIL_NULL, new EmptyChildWindow, EDGES_NOSCROLLBARS_NODRAGGING);
 

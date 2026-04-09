@@ -51,16 +51,21 @@ long _findfirst(const char *filespec, struct _finddata_t *fileinfo) {
         return -1L;
     }
 
-    const char* last_slash = strrchr(filespec, '/');
+    // RERUN: Convert backslashes to forward slashes for Linux compatibility
+    std::string spec = filespec;
+    std::replace(spec.begin(), spec.end(), '\\', '/');
+
+    const char* last_slash = strrchr(spec.c_str(), '/');
     std::string dir_path;
     std::string pattern;
 
     if (last_slash) {
-        dir_path = std::string(filespec, last_slash - filespec);
-        pattern = last_slash + 1;
+        size_t pos = last_slash - spec.c_str();
+        dir_path = spec.substr(0, pos);
+        pattern = spec.substr(pos + 1);
     } else {
         dir_path = ".";
-        pattern = filespec;
+        pattern = spec;
     }
     
     if (dir_path.empty()) {

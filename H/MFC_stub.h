@@ -1138,6 +1138,8 @@ public:
     void ReleaseDC(CDC* /*pDC*/);
     void UpdateWindow();
     void DragAcceptFiles();
+    virtual void SetFocus();
+    static CWnd* GetFocus();
 
     //virtual HWND GetSafeHwnd() const { return nullptr; }
     BOOL InvalidateRect(const CRect* lpRect, BOOL bErase = TRUE);

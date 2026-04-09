@@ -22,6 +22,7 @@
 #include "RSTATIC.H"
 #include "RCOMBO.H"
 #include "RLISTBOX.H"
+#include "REDIT.H"
 #include "REDTBT.H"
 #include "RTABS.H"
 #include "RRADIO.H"
@@ -91,6 +92,8 @@ END_MESSAGE_MAP()
 
 BEGIN_MESSAGE_MAP(CComboBox, CWnd)
 END_MESSAGE_MAP()
+
+static CWnd* g_pFocusWnd = nullptr;
 
 CWnd wndTop;
 CWnd wndBottom;
@@ -403,12 +406,21 @@ HWND FindChildWindow(HWND parent, int& x, int& y)
 {
     WindowBackend* be = backend_from_hwnd(parent);
     if (!be) return parent;
+    // std::cout << "[HitTest] Checking parent HWND=" << parent << " at (" << x << "," << y << ")" << std::endl;
 
     // Check children in reverse order (assuming last created is on top)
     for (auto it = be->children.rbegin(); it != be->children.rend(); ++it) {
         HWND child = *it;
         WindowBackend* childBe = backend_from_hwnd(child);
         if (childBe && childBe->visible && childBe->owner) {
+            // RERUN: Standard Win32 behavior: Static controls are transparent to mouse 
+            // hits unless they have the SS_NOTIFY (0x0100) style.
+            if (childBe->owner->IsKindOf(RUNTIME_CLASS(CStatic))) {
+                if (!(childBe->style & SS_NOTIFY)) {
+                    continue; 
+                }
+            }
+
             CRect& r = childBe->owner->m_rect;
             
             // RERUN: Special handling for CRRadio to allow "click-through"
@@ -427,6 +439,7 @@ HWND FindChildWindow(HWND parent, int& x, int& y)
             if (x >= r.left && x < r.right && y >= r.top && y < r.bottom) {
                 x -= r.left;
                 y -= r.top;
+                // std::cout << "  > Hit child ID=" << childBe->owner->m_nID << " (" << typeid(*childBe->owner).name() << ")" << std::endl;
                 return FindChildWindow(child, x, y);
             }
         }
@@ -553,6 +566,7 @@ void PumpSDL()
                     msg.pt_y = y;
                     if (e.button.button == SDL_BUTTON_LEFT)
                         msg.message = (e.type == SDL_MOUSEBUTTONDOWN) ? WM_LBUTTONDOWN : WM_LBUTTONUP;
+                    //if (msg.message == WM_LBUTTONDOWN) std::cout << "[Input] MouseDown HWND=" << targetHwnd << " at (" << x << "," << y << ")" << std::endl;
                     else if (e.button.button == SDL_BUTTON_RIGHT)
                         msg.message = (e.type == SDL_MOUSEBUTTONDOWN) ? 0x0204 /*WM_RBUTTONDOWN*/ : 0x0205 /*WM_RBUTTONUP*/;
                     
@@ -617,6 +631,24 @@ void PumpSDL()
             case SDL_KEYDOWN:
             case SDL_KEYUP:
             {
+                // Handle special keys for focused controls (e.g. Backspace for CREdit)
+                if (e.type == SDL_KEYDOWN && g_pFocusWnd) {
+                    if (e.key.keysym.sym == SDLK_BACKSPACE) {
+                        msg.hwnd = g_pFocusWnd->GetSafeHwnd();
+                        msg.message = WM_CHAR;
+                        msg.wParam = 0x08; // VK_BACK
+                        msg.time = SDL_GetTicks();
+                        g_msgQueue.push_back(msg);
+                    }
+                    else if (e.key.keysym.sym == SDLK_RETURN || e.key.keysym.sym == SDLK_KP_ENTER) {
+                        msg.hwnd = g_pFocusWnd->GetSafeHwnd();
+                        msg.message = WM_CHAR;
+                        msg.wParam = 0x0D; // VK_RETURN
+                        msg.time = SDL_GetTicks();
+                        g_msgQueue.push_back(msg);
+                    }
+                }
+
                 // For 3D engine
                 if (e.key.repeat == 0) { // Process only single key presses, not repeats
                     int dik_code = SDLScancodeToDIK(e.key.keysym.scancode);
@@ -627,13 +659,27 @@ void PumpSDL()
                 }
 
                 // For UI
-                CWnd* wnd = AfxGetMainWnd(); 
-                if (wnd)
+                CWnd* target = g_pFocusWnd ? g_pFocusWnd : AfxGetMainWnd();
+                if (target)
                 {
-                    msg.hwnd = wnd->GetSafeHwnd();
+                    msg.hwnd = target->GetSafeHwnd();
                     msg.message = (e.type == SDL_KEYDOWN) ? WM_KEYDOWN : WM_KEYUP;
                     msg.wParam = e.key.keysym.sym; 
                     g_msgQueue.push_back(msg);
+                }
+                break;
+            }
+
+            case SDL_TEXTINPUT:
+            {
+                if (g_pFocusWnd) {
+                    for (int i = 0; e.text.text[i] != '\0'; ++i) {
+                        msg.hwnd = g_pFocusWnd->GetSafeHwnd();
+                        msg.message = WM_CHAR;
+                        msg.wParam = (unsigned char)e.text.text[i];
+                        msg.time = SDL_GetTicks();
+                        g_msgQueue.push_back(msg);
+                    }
                 }
                 break;
             }
@@ -1024,6 +1070,26 @@ CWnd* CWnd::FromHandle(HWND hWnd)
         return it->second.owner;
     }
     return nullptr;
+}
+
+void CWnd::SetFocus()
+{
+    if (g_pFocusWnd != this) {
+        if (g_pFocusWnd) g_pFocusWnd->Invalidate();
+        g_pFocusWnd = this;
+        Invalidate();
+
+        if (IsKindOf(RUNTIME_CLASS(CREdit))) {
+            SDL_StartTextInput();
+        } else {
+            SDL_StopTextInput();
+        }
+    }
+}
+
+CWnd* CWnd::GetFocus()
+{
+    return g_pFocusWnd;
 }
 
 BOOL CWnd::InvalidateRect(const CRect* lpRect, BOOL bErase)
@@ -1734,6 +1800,9 @@ BOOL CWnd::DestroyWindow()
         if (g_pCaptureWnd == this)
             ReleaseCapture();
         
+        if (g_pFocusWnd == this)
+            g_pFocusWnd = nullptr;
+
         if (AfxGetMainWnd() == this) {
             AfxPostQuitMessage(0);
             AfxGetApp()->m_pMainWnd = nullptr;
@@ -1923,12 +1992,6 @@ void CWnd::GetWindowRect(LPRECT lpRect) const
 }
 void CWnd::MoveWindow(int x, int y, int w, int h)
 {
-    // RERUN FIX: Prevent control 2022 (Auto Throttle) from being resized to 0.
-    // This acts as a safety guard against ScaleDialog miscalculations or crushing to 1x1.
-    if (w < 2 || h < 2) {
-        std::cout << "[MFC_stub] MoveWindow prevented zero-sizing of Control." << std::endl;
-        return;
-    }
     SetWindowPos(NULL, x, y, w, h, SWP_NOZORDER | SWP_NOACTIVATE);
 }
 void CWnd::MoveWindow(const CRect& r, BOOL repaint)
@@ -2051,6 +2114,7 @@ BOOL CWnd::SubclassWindow(HWND hWnd)
              m_pParent->AddChild(this, m_nID);
              // std::cout << "[MFC_stub] SubclassWindow: Updated parent's child map for ID " << m_nID << " to object " << this << " HWND=" << hWnd << std::endl;
         }
+        PreSubclassWindow();
 
         return TRUE;
     }
@@ -2250,24 +2314,30 @@ BOOL CWnd::SetWindowPos(const CWnd* pWndInsertAfter, int x, int y, int cx, int c
 {
     WindowBackend* be = backend_from_hwnd(m_hWnd);
     // RERUN: For independent top-level windows, synchronize with the physical SDL window
-    if (be && be->window && !be->isChild) {
+    if (cx > 0 || cy > 0) {
+        if (be && be->window && !be->isChild) {
+            if (!(nFlags & SWP_NOMOVE)) {
+                SDL_SetWindowPosition(be->window, x, y);
+            }
+            if (!(nFlags & SWP_NOSIZE)) {
+                SDL_SetWindowSize(be->window, cx, cy);
+            }
+        }
+    
         if (!(nFlags & SWP_NOMOVE)) {
-            SDL_SetWindowPosition(be->window, x, y);
+            m_rect.left   = x;
+            m_rect.top    = y;
+            SendMessage(WM_MOVE, 0, MAKELPARAM(x, y));
         }
         if (!(nFlags & SWP_NOSIZE)) {
-            SDL_SetWindowSize(be->window, cx, cy);
+            m_rect.right  = m_rect.left + cx;
+            m_rect.bottom = m_rect.top + cy;
+            SendMessage(WM_SIZE, SIZE_RESTORED, MAKELPARAM(cx, cy));
         }
     }
-
-    if (!(nFlags & SWP_NOMOVE)) {
-        m_rect.left   = x;
-        m_rect.top    = y;
-        SendMessage(WM_MOVE, 0, MAKELPARAM(x, y));
-    }
-    if (!(nFlags & SWP_NOSIZE)) {
-        m_rect.right  = m_rect.left + cx;
-        m_rect.bottom = m_rect.top + cy;
-        SendMessage(WM_SIZE, SIZE_RESTORED, MAKELPARAM(cx, cy));
+    else
+    {
+        std::cout << "[MFC_stub] WARNING WARNING SetWindowPos called with zero size, ignoring size change." << std::endl;
     }
 
     if (!(nFlags & SWP_NOZORDER)) {
@@ -2469,6 +2539,7 @@ void CWnd::OnDestroy()
 }
 void CWnd::OnLButtonDown(UINT nFlags, CPoint point)
 {
+    SetFocus();
     SetCapture();
 
     // RERUN: Check for scrollbar hits on generic CWnds
@@ -2564,6 +2635,9 @@ void CWnd::FireEvent(int eventID, ...)
 }
 
 int CListBox::AddString(LPCTSTR lpszItem) {
+    if (m_pComboOwner) {
+        std::cout << "[CListBox] Populating Dropdown Item: " << (lpszItem ? lpszItem : "NULL") << std::endl;
+    }
     m_items.push_back(lpszItem);
     return m_items.size() - 1;
 }
@@ -2728,7 +2802,18 @@ void CListBox::OnLButtonDown(UINT nFlags, CPoint point) {
     if (index >= 0 && index < (int)m_items.size()) {
         m_curSel = index;
         if (m_pComboOwner) { // This is a dropdown list for a CRCombo
+            // RERUN: Selection change via UI interaction. 
+            // Capture the string first to prevent Use-After-Free if the handler clears the list.
+            std::string selectedText = m_items[m_curSel];
+            
             m_pComboOwner->SetCurSel(m_curSel);
+
+            // Fire the TextChanged event (1) and send selection change notification.
+            m_pComboOwner->FireEvent(1, selectedText.c_str());
+            if (m_pComboOwner->GetParent()) {
+                m_pComboOwner->GetParent()->SendMessage(WM_COMMAND, MAKEWPARAM(m_pComboOwner->GetDlgCtrlID(), 1 /*CBN_SELCHANGE*/), (LPARAM)m_pComboOwner->m_hWnd);
+            }
+            
             m_hotSel = -1; // Reset hover highlight
             ShowWindow(SW_HIDE);
             ReleaseCapture(); // RERUN: Release mouse capture after selection.
@@ -2805,6 +2890,7 @@ void CListBox::OnPaint() {
     
     int itemHeight = GetItemHeight(); // This gets the height correctly based on the font
     if (itemHeight <= 0) itemHeight = 24; // RERUN: Safety check to prevent divide by zero
+    if (m_pComboOwner) std::cout << "[CRCombo] Painting dropdown with " << m_items.size() << " items. Height=" << itemHeight << std::endl;
     
     // RERUN: Safety check for vector corruption (unreasonably large size)
     if (m_items.size() > 10000) {
@@ -2977,7 +3063,7 @@ void CStatic::OnPaint()
     if (!text.IsEmpty())
     {
         dc.SetBkMode(TRANSPARENT);
-        dc.SetTextColor(RGB(173, 216, 230)); // RERUN: Force light blue text for visibility
+        dc.SetTextColor(RGB(255, 255, 0)); // RERUN: Revert to UI-standard yellow
 
         UINT format = DT_WORDBREAK;
         DWORD style = GetStyle();
@@ -3045,6 +3131,7 @@ void AFXAPI DDX_Control(CDataExchange* pDX, int nIDC, CWnd& rControl)
                     CRButton* pButton = dynamic_cast<CRButton*>(&rControl);
                     CRRadio* pRadio = dynamic_cast<CRRadio*>(&rControl);
                     CRStatic* pStatic = dynamic_cast<CRStatic*>(&rControl);
+                    CREdit* pEdit = dynamic_cast<CREdit*>(&rControl);
 
                     if (pButton) {
                         pButton->SetButtonMetadata(meta.icon_enum, meta.icon_name.c_str());
@@ -3061,6 +3148,13 @@ void AFXAPI DDX_Control(CDataExchange* pDX, int nIDC, CWnd& rControl)
                         // RERUN: Apply font number from metadata if present
                         if (meta.icon_enum != 0) {
                             pStatic->SetFontNum(meta.icon_enum);
+                        }
+                    } else if (pEdit) {
+                        if (meta.icon_enum != 0) pEdit->SetLimitText(meta.icon_enum);
+                    } else if (rControl.IsKindOf(RUNTIME_CLASS(CRCombo))) {
+                        // Apply initial string from DLGINIT if it exists
+                        if (!g_dlgInitStrings[dlgID][nIDC].empty()) {
+                            rControl.SetWindowText(g_dlgInitStrings[dlgID][nIDC].c_str());
                         }
                     } else {
                         // RERUN: Improved warning message for unhandled control types with metadata.
@@ -3095,7 +3189,7 @@ void ParseRCFile(const std::string& filename)
     // RERUN: Load ID mappings (Name -> ID) from header defines
     if (data.contains("header_defines") && data["header_defines"].is_array()) {
         for (const auto& define : data["header_defines"]) {
-            if (define.contains("name") && define.contains("id")) {
+            if (define.contains("name") && define.contains("id") && !define["id"].is_null()) {
                 g_resIDMap[define["name"].get<std::string>()] = define["id"].get<int>();
             }
         }
@@ -3125,21 +3219,23 @@ void ParseRCFile(const std::string& filename)
             continue;
         }
 
-        DlgTemplate currentDlg;
+        DlgTemplate currentDlg = {}; // RERUN: Zero initialize template
         currentDlg.id = dialog_json["numeric_id"].get<int>();
 
-        if (dialog_json.contains("rect") && dialog_json["rect"].is_array() && dialog_json["rect"].size() == 4) {
+        if (dialog_json.contains("rect") && dialog_json["rect"].is_array() && dialog_json["rect"].size() == 4 && !dialog_json["rect"][0].is_null()) {
             currentDlg.x = dialog_json["rect"][0].get<int>();
             currentDlg.y = dialog_json["rect"][1].get<int>();
             currentDlg.cx = dialog_json["rect"][2].get<int>();
             currentDlg.cy = dialog_json["rect"][3].get<int>();
         } else {
-            currentDlg.x = 0; currentDlg.y = 0; currentDlg.cx = 100; currentDlg.cy = 100;
+            currentDlg.x = 0; currentDlg.y = 0; 
+            // RERUN: Use -1 to signal that coordinates were missing/null in JSON
+            currentDlg.cx = -1; currentDlg.cy = -1;
         }
 
         if (dialog_json.contains("controls") && dialog_json["controls"].is_array()) {
             for (const auto& control_json : dialog_json["controls"]) {
-                DlgControlTemplate ctl;
+                DlgControlTemplate ctl = {}; // RERUN: Zero initialize control
 
                 if (control_json.contains("id") && !control_json["id"].is_null()) {
                     ctl.id = control_json["id"].get<int>();
@@ -3151,7 +3247,7 @@ void ParseRCFile(const std::string& filename)
                     ctl.text = control_json["text"].get<std::string>();
                 }
 
-                if (control_json.contains("rect") && control_json["rect"].is_array() && control_json["rect"].size() == 4) {
+                if (control_json.contains("rect") && control_json["rect"].is_array() && control_json["rect"].size() == 4 && !control_json["rect"][0].is_null()) {
                     ctl.x = control_json["rect"][0].get<short>();
                     ctl.y = control_json["rect"][1].get<short>();
                     ctl.cx = control_json["rect"][2].get<short>();
@@ -3209,6 +3305,15 @@ void ParseRCFile(const std::string& filename)
         }
 
         if (currentDlg.id != 0) {
+            // RERUN: Better template selection. A template with controls is always 
+            // preferred over an empty one. Never let an empty/junk stub overwrite 
+            // a valid template that was already loaded.
+            if (g_dlgTemplates.count(currentDlg.id)) {
+                if (currentDlg.controls.empty() && !g_dlgTemplates[currentDlg.id].controls.empty()) {
+                    continue;
+                }
+            }
+            // Valid full template found; it may overwrite an existing stub if necessary.
             g_dlgTemplates[currentDlg.id] = currentDlg;
         }
     }
@@ -3285,7 +3390,12 @@ void ParseRCFile(const std::string& filename)
                                 if (resID != 0) {
                                     auto itStr = g_resStringsMap.find(resID);
                                     if (itStr != g_resStringsMap.end()) {
-                                        g_dlgInitStrings[dlgID][control_id] = itStr->second;
+                                        const std::string& resStr = itStr->second;
+                                        // RERUN FIX: Only use the resource string if it's not a known placeholder.
+                                        // This prevents "Xx" or "-" from overwriting good scavenged text.
+                                        if (resStr != "Xx" && resStr != "xx" && resStr != "-" && !resStr.empty()) {
+                                            g_dlgInitStrings[dlgID][control_id] = resStr;
+                                        }
                                     }
                                 }
                             }
@@ -3547,6 +3657,7 @@ BOOL CDialog::Create(int id, CWnd* pParent)
                 case 222: fallback = "Authorisation"; break;
                 case 220: fallback = "Bases"; break;
                 case 200: fallback = "Mission Folder"; break;
+                case 266: fallback = "3D Detail"; break; // RERUN: Fix for Preferences Tab
                 case 998: fallback = "Credits"; break;
             }
             if (fallback) {
@@ -3568,7 +3679,7 @@ BOOL CDialog::Create(int id, CWnd* pParent)
             }
             else if (ctl.id == IDC_RLISTBOX) pChild = new CRListBox(); // RERUN: Use CRListBox for main menu
             else if (ctl.className == "LISTBOX") pChild = new CRListBox(); // RERUN: Revert to CRListBox for other listboxes
-            else if (ctl.className == "EDIT") pChild = new CEdit();
+            else if (ctl.className == "EDIT" || ctl.className == "CREdit" || ctl.className == "6CREdit") pChild = new CREdit();
             else if (ctl.className == "BUTTON") pChild = new CRButton();
             else if (ctl.className == "STATIC") {
                 pChild = new CRStatic(); // RERUN: Revert to CRStatic
@@ -3593,7 +3704,7 @@ BOOL CDialog::Create(int id, CWnd* pParent)
                     ((CRStatic*)pChild)->SetFontNum(0);
             }
             else if (ctl.className == "{737CB0C9-B42B-11D1-A1F0-444553540000}") pChild = new CRCombo();
-            else if (ctl.className == "{461A1FE3-B81B-11D1-A1F0-444553540000}") pChild = new CREdtBt();
+            else if (ctl.className == "{461A1FE3-B81B-11D1-A1F0-444553540000}" || ctl.className == "7CREdtBt") pChild = new CREdtBt();
             else if (ctl.className == "{48814009-65AE-11D1-A1F0-444553540000}") pChild = new CRListBox();
             else if (ctl.className == "{4A1E1986-8B31-11D1-A1F0-444553540000}" || ctl.className.find("Tab") != std::string::npos) pChild = new CRTabs();
             else if (ctl.className == "{5363BA22-D90A-11D1-A1F0-0080C8582DE4}") pChild = new CRRadio();

@@ -15384,11 +15384,9 @@ BEGIN
     IDS_D_Flak03_H          "AAA increase at bridges"
     IDS_D_Flak03_M          "The Reds have increased flak coverage at all major bridges and choke points."
     IDS_T_DeceptionFound00_H "Fake bomb craters on runway"
-    IDS_T_DeceptionFound00_M 
-                            "Circular rings of dirt are arranged on the runway to give the impression that severe damage was inflicted during prior air attacks. We have noted that these fake craters do not always match the size and pattern of real craters, and so can be identified."
+    IDS_T_DeceptionFound00_M  "Circular rings of dirt are arranged on the runway to give the impression that severe damage was inflicted during prior air attacks. We have noted that these fake craters do not always match the size and pattern of real craters, and so can be identified."
     IDS_D_DeceptionFound01_H "Bridge spans hidden during day"
-    IDS_D_DeceptionFound01_M 
-                            "A night reconn team has turned in an interesting report. Before dawn, the reds remove and hide spans from the bridge, creating the impression that the bridge is down. At night, the spans are replaced to allow traffic across."
+    IDS_D_DeceptionFound01_M  "A night reconn team has turned in an interesting report. Before dawn, the reds remove and hide spans from the bridge, creating the impression that the bridge is down. At night, the spans are replaced to allow traffic across."
     IDS_T_Bombers00_H       "Unacceptable B29 losses"
     IDS_T_Bombers00_M       "Our medium bomber losses are unacceptable. Until further notice, all B29 squadrons are standing down from duty."
     IDS_T_Bombers01_H       "B29s back on duty"
@@ -15400,11 +15398,9 @@ END
 STRINGTABLE DISCARDABLE 
 BEGIN
     IDS_D_DeceptionFound02_H "Truck deception discovered"
-    IDS_D_DeceptionFound02_M 
-                            "One of our pilots has uncovered another example of Red ingenuity. To avoid detection and attack from the air, some communists have attached thatched roofs to their supply trucks. From a distance, stationary vehicles look like huts."
+    IDS_D_DeceptionFound02_M  "One of our pilots has uncovered another example of Red ingenuity. To avoid detection and attack from the air, some communists have attached thatched roofs to their supply trucks. From a distance, stationary vehicles look like huts."
     IDS_D_DeceptionFound03_H "Another strange report"
-    IDS_D_DeceptionFound03_M 
-                            "It seems that the enemy will resort to any method to get supplies to their front. A pilot has reported chasing ammo porters disguised as monks. Upon hitting one of the fellows the pilot was greeted with a massive secondary explosion."
+    IDS_D_DeceptionFound03_M  "It seems that the enemy will resort to any method to get supplies to their front. A pilot has reported chasing ammo porters disguised as monks. Upon hitting one of the fellows the pilot was greeted with a massive secondary explosion."
     IDS_T_Retreat02_H       "Allies pull back"
     IDS_T_Retreat02_M       "Our defeat in a key sector has thrown the entire allied line back to old positions."
     IDS_T_Retreat03_H       "UN retreat to new line"
@@ -15649,7 +15645,7 @@ BEGIN
     IDS_PENCE               "pence"
     IDS_POUNDS              "pounds"
     IDS_PEE                 "p"
-    IDS_PNDS                "�"
+    IDS_PNDS                "£"
     IDS_CURRENCYPARTNAME    "                                   "
     IDS_CURRENCYMAINNAME    "                         "
     IDS_CURRPARTSYM         "   "
@@ -16237,8 +16233,7 @@ END
 STRINGTABLE DISCARDABLE 
 BEGIN
     IDS_LOG_SEENBYOTHERS    "%i %s out of %s were encountered by another air group over %s."
-    IDS_LOG_ATTACKEDBYOTHERS 
-                            "We missed out on some action. Another group attacked %i %s out of %s near %s."
+    IDS_LOG_ATTACKEDBYOTHERS  "We missed out on some action. Another group attacked %i %s out of %s near %s."
     IDS_LOG_SEENBYPLAYERS   "We saw a squadron of about %i %s from %s over %s. It was not engaged."
     IDS_LOG_HOSTILE         "A hostile squadron of %i %s from %s was encountered by our group near %s. We did not engage."
     IDS_LOG_SPOTTEDDOGFIGHT "A dogfight involving over %i %s was spotted near %s. We left them to it."
@@ -16437,11 +16432,9 @@ END
 STRINGTABLE DISCARDABLE 
 BEGIN
     IDS_CT_DESIGNTEAMTITLE  "Game Design:\n\nRod Hyde, Mark Shaw"
-    IDS_CT_PROGRAMMINGTEAMTITLE 
-                            "Programming Team:\n\nJames Taylor, Paul Dunscombe, Craig Beeston, Andrew McMaster, Dallas Morrison, Robert Slater, Dave Whiteside"
-    IDS_CT_ARTWORKTEAMTITLE "Artwork Team:\n\nAndy McCann, Richard Jones, Toks Solarin"
-    IDS_CT_LANDSCAPETEAMTITLE 
-                            "Landscape:\n\n Amanda Fair McCann, Ian Hardy,Chris Jones"
+    IDS_CT_PROGRAMMINGTEAMTITLE  "Programming Team:\n\nJames Taylor, Paul Dunscombe, Craig Beeston, Andrew McMaster, Dallas Morrison, Robert Slater, Dave Whiteside"
+    IDS_CT_ARTWORKTEAMTITLE  "Artwork Team:\n\nAndy McCann, Richard Jones, Toks Solarin"
+    IDS_CT_LANDSCAPETEAMTITLE  "Landscape:\n\n Amanda Fair McCann, Ian Hardy,Chris Jones"
 END
 
 STRINGTABLE DISCARDABLE 
@@ -16451,8 +16444,7 @@ BEGIN
     IDS_CT_EITEAMTITLE      "E.I. Team:\n\nClare Brown, Dawn Beasley, Tony Bond, Paul Flewitt, Phil Goldfinch, Mike Holten, Andrei Nadin, Alison Ryan, Darren Thompson, Ben Wilkins"
     IDS_CT_TESTINGTEAMTITLE "Testing Team:\n\nCarlo Bush, Ian Hardy, Ben Jay, Chris Jones, Tomek Ochocki, Danny Rawles, Iain Riches"
     IDS_CT_TESTINGTEAM      "Ken Cook, Tom Launder, Victor 'Clutch' Di Cosola, Matthew Young, Steve 'Hengist' Redfern"
-    IDS_CT_SPECIALTHANKSTITLE 
-                            "Technical Assistance:\n\nBoots Blesse, Richard Dorr, Mark Hannah, Paddy Harbison, Anton Maree, Jim Tittle"
+    IDS_CT_SPECIALTHANKSTITLE  "Technical Assistance:\n\nBoots Blesse, Richard Dorr, Mark Hannah, Paddy Harbison, Anton Maree, Jim Tittle"
     IDS_CT_COPYRIGHT        "Copyright 1999 Rowan Software Ltd, V1.0 "
 END
 

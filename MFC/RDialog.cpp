@@ -413,6 +413,7 @@ RDialog*	RDialog::AddChildren(const DialBox*const* diallist,int X2flag,CRect& re
 //DeadCode JIM 10Jun99 		dial->dragstate=DRAG_NO;
 		dial->artnum=diallist[i]->art;
 		dial->Create(dial->MY_IID,this);
+
 		dial->m_scalingfactor=(float)fontdpi/96;
 		if (X2flag)
 			dial->ScaleDialog(2);
@@ -583,6 +584,7 @@ void	RDialog::AddChildren(const DialBox*const* diallist,DialMake::ChildType chil
 //DeadCode JIM 10Jun99 		dial->dragstate=DRAG_NO;
 		dial->artnum=diallist[i]->art;
 		dial->Create(dial->MY_IID,this);
+
 		dial->m_scalingfactor=(float)fontdpi/96;
 		dial->ScaleDialog(1);
 		dial->dragstate=DRAG_NO;
@@ -2476,7 +2478,7 @@ int	RDialog::GetFontScaling()
 {
 //	int rv=GetDialogBaseUnits();
 //	return rv*4;
-	return 97;
+	return 96;
 		 
 }
 void RDialog::ScaleDialog(float factor)

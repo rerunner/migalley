@@ -134,6 +134,7 @@ void CLoad::DoDataExchange(CDataExchange* pDX)
 
 BEGIN_MESSAGE_MAP(CLoad, CDialog)
 	//{{AFX_MSG_MAP(CLoad)
+	ON_COMMAND(IDOK, OnOK)
 	ON_MESSAGE( WM_SELECTTAB, OnSelectTab)
 	ON_EN_UPDATE(IDCX_SAVENAME, OnUpdateSavename)
 	//}}AFX_MSG_MAP
@@ -203,7 +204,31 @@ void CLoad::OnUpdateSavename()
 {
 	CString buffer;
 	m_IDCX_SAVENAME.GetWindowText(buffer);
-	filename=buffer+strpbrk(wildcard, ".");
+	const char* ext = strpbrk(wildcard, ".");
+	filename=buffer+(ext ? ext : "");
+}
+
+void CLoad::OnOK()
+{
+	// RERUN: Force synchronization of the filename variable before closing.
+	if (acnum == LSD_SAVE || acnum == LSD_SAVE_DESELECT)
+	{
+		CString buffer;
+		if (m_IDCX_SAVENAME.m_hWnd)
+		{
+			m_IDCX_SAVENAME.GetWindowText(buffer);
+		}
+		else
+		{
+			CREdit* e = GETDLGITEM(IDC_SAVENAME);
+			if (e) buffer = e->GetCaption();
+		}
+
+		const char* ext = strpbrk(wildcard, ".");
+		if (!buffer.IsEmpty() && buffer != ".")
+			filename = buffer + (ext ? ext : "");
+	}
+	CDialog::OnOK();
 }
 
 void CLoad::OnReturnPressedSavename(LPCTSTR text) 
@@ -364,6 +389,24 @@ BOOL CLoad::OnInitDialog()
 
 void CLoad::OnClickedFileok() 
 {
+	// RERUN: Sync the filename from the UI controls before checking validity.
+	if (acnum == LSD_SAVE || acnum == LSD_SAVE_DESELECT)
+	{
+		CString buffer;
+		if (m_IDCX_SAVENAME.m_hWnd)
+		{
+			m_IDCX_SAVENAME.GetWindowText(buffer);
+		}
+		else
+		{
+			CREdit* e = GETDLGITEM(IDC_SAVENAME);
+			if (e) buffer = e->GetCaption();
+		}
+		const char* ext = strpbrk(wildcard, ".");
+		if (!buffer.IsEmpty() && buffer != ".")
+			filename = buffer + (ext ? ext : "");
+	}
+
 	if ((!listempty || acnum == LSD_SAVE) && (filename.IsEmpty() || filename.GetAt(0) == '.')) {
 		return;
 	}

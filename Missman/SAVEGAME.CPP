@@ -221,22 +221,46 @@ BOStream& operator	<<	(BOStream& bos,SaveData& savedata)
 BIStream& operator	>>	(BIStream& bis,SaveData& savedata)
 {
 //	Mono_Text.Print(0,UByteP("Save_Data loading!"));
-	bis>>date;
-	if (strcmp(date,date2)==0) //RERUN: This seems to check if you do not try to load savedata from an older gamebuild
+	// RERUN: Read the exact length of the header. 'bis >> date' stops at the first space.
+	bis.read(date, strlen(date2));
+	date[strlen(date2)] = 0;
+
+	if (strcmp(date,date2)==0)
 	{
-		int i;
 		bis.read((char*)&savedata,sizeof(SaveDataLoad));
+
 		char buffer[180];
-		char b=-1;
-		for (i=0;b;buffer[i++]=b)
-			bis>>b;
-		savedata.lastsavegame=buffer;
-		for (b=-1,i=0;b;buffer[i++]=b)
-			bis>>b;
-		savedata.lastreplayname=buffer;
-		for (b=-1,i=0;b;buffer[i++]=b)
-			bis>>b;
-		savedata.lastpackname=buffer;
+		char b;
+
+		// RERUN: Corrected string reading logic. 
+		// Use bis.read() instead of '>>' to ensure spaces in filenames/names are preserved.
+		int i = 0;
+		while (i < 179) {
+			if (!bis.read(&b, 1)) break;
+			if (b == 0) break;
+			buffer[i++] = b;
+		}
+		buffer[i] = 0;
+		savedata.lastsavegame = buffer;
+
+		i = 0;
+		while (i < 179) {
+			if (!bis.read(&b, 1)) break;
+			if (b == 0) break;
+			buffer[i++] = b;
+		}
+		buffer[i] = 0;
+		savedata.lastreplayname = buffer;
+
+		i = 0;
+		while (i < 179) {
+			if (!bis.read(&b, 1)) break;
+			if (b == 0) break;
+			buffer[i++] = b;
+		}
+		buffer[i] = 0;
+		savedata.lastpackname = buffer;
+
 		bis>>_Analogue;
 
 		_Miles.SetGlobalVolumes(savedata.vol.sfx,savedata.vol.music,savedata.vol.engine,savedata.vol.anim,TRUE);//RJS 29Sep96
@@ -317,7 +341,10 @@ static	BOStream& operator	<<	(BOStream& bos,Campaign& campaign)
 
 static	BIStream& operator	>>	(BIStream& bis,Campaign& campaign)
 {
-	bis>>date;
+	// RERUN: Match header reading logic
+	bis.read(date, strlen(date2));
+	date[strlen(date2)] = 0;
+
 #ifndef MIG_DEMO_VER
 	if (strcmp(date,date2))
 		_Error.ReallyEmitSysErr("Savegame dates differ %s != %s",date,date2);

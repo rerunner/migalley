@@ -15,6 +15,18 @@ def strip_line_comments(line: str) -> str:
     line = re.sub(r'/\*.*?\*/', '', line)
     return line.rstrip('\n')
 
+def safe_int(s, context=None):
+    s = s.strip()
+    if not s: return 0
+    # RERUN: Strip common Win32 RC suffixes like 'L' (long) or 'U' (unsigned)
+    s = re.sub(r'([0-9A-Fa-f])[LUlu]+$', r'\1', s)
+    # Evaluate simple math (e.g. 15+10) or hex strings
+    try: 
+        ns = {"__builtins__": None}
+        if context: ns.update(context)
+        return int(eval(s, ns, {}))
+    except: return 0
+
 def normalize_whitespace(s: str) -> str:
     return re.sub(r'\s+', ' ', s).strip()
 
@@ -25,14 +37,18 @@ def normalize_whitespace(s: str) -> str:
 def parse_resource_header(path: Path):
     name_to_id = {}
     id_to_name = {}
-    define_re = re.compile(r'#define\s+(\w+)\s+(\d+)')
+    # RERUN: Match signed integers and hex values
+    define_re = re.compile(r'#define\s+(\w+)\s+(-?0x[0-9A-Fa-f]+|-?\d+)')
     with path.open(encoding='latin-1', errors='ignore') as f:
         for raw in f:
             line = strip_line_comments(raw)
             m = define_re.match(line)
             if not m:
                 continue
-            name, num = m.group(1), int(m.group(2))
+            name = m.group(1)
+            try:
+                num = int(m.group(2), 0) # Handles decimal and hex
+            except ValueError: continue
             name_to_id[name] = num
             # Prefer first name for a given ID, but keep list if needed
             if num not in id_to_name:
@@ -214,7 +230,7 @@ CONTROL_KEYWORDS = {
     "AUTOCHECKBOX",
 }
 
-def parse_dialog_header(line: str):
+def parse_dialog_header(line: str, name_to_id=None, id_to_name=None):
     """
     Examples:
       IDD_ABOUTBOX DIALOG 0, 0, 186, 95
@@ -224,19 +240,35 @@ def parse_dialog_header(line: str):
     # Strip comments and normalize a bit, but don't rely on splitting by spaces for numbers
     line = normalize_whitespace(strip_line_comments(line))
 
-    # Match: <name> <DIALOG|DIALOGEX> <rest>
-    m = re.match(r'^(\S+)\s+(DIALOGEX|DIALOG)\s*(.*)$', line, re.IGNORECASE)
+    m = re.match(r'^\s*([A-Za-z0-9_]+),?\s+(DIALOGEX|DIALOG)\s*(.*)$', line, re.IGNORECASE)
     if not m:
         return None
 
-    name = m.group(1)
+    name = m.group(1) # [A-Za-z0-9_]+ ensures name is captured without the comma
     dlg_type = m.group(2).upper()
-    rest = m.group(3)
+    rest = m.group(3).strip()
 
-    # Extract all integer literals from the rest, ignoring commas etc.
-    nums = [int(n) for n in re.findall(r'-?\d+', rest)]
-    if len(nums) >= 4:
-        x, y, w, h = nums[:4]
+    # RERUN: Robust coordinate extraction. Dialog headers can have attributes 
+    # (DISCARDABLE, PRELOAD) anywhere. We look for the 4 numeric tokens.
+    raw_tokens = []
+    for t in split_commas(rest):
+        # Sub-split by space to separate attributes from numbers
+        raw_tokens.extend(t.split())
+    
+    numeric_tokens = []
+    for t in raw_tokens:
+        t = t.strip()
+        # Check if it looks like a number, hex, or simple expression
+        if t and (t[0].isdigit() or t[0] in ('-', '(', '0')):
+            numeric_tokens.append(t)
+
+    parts = numeric_tokens
+
+    if len(parts) >= 4:
+        x = safe_int(parts[0], name_to_id)
+        y = safe_int(parts[1], name_to_id)
+        w = safe_int(parts[2], name_to_id)
+        h = safe_int(parts[3], name_to_id)
     else:
         x = y = w = h = None
 
@@ -255,7 +287,7 @@ def parse_dialog_block(lines, idx, name_to_id, id_to_name):
     Returns (dialog_dict, new_idx)
     """
     header_line = strip_line_comments(lines[idx])
-    dlg_info = parse_dialog_header(header_line)
+    dlg_info = parse_dialog_header(header_line, name_to_id, id_to_name)
     if not dlg_info:
         # Fallback: store raw
         dlg = {
@@ -271,7 +303,12 @@ def parse_dialog_block(lines, idx, name_to_id, id_to_name):
             "id": None,
             "numeric_id": None,
             "dialog_type": dlg_info["dialog_type"],
-            "rect": [dlg_info["x"], dlg_info["y"], dlg_info["width"], dlg_info["height"]],
+            "rect": [
+                dlg_info["x"] if dlg_info["x"] is not None else 0,
+                dlg_info["y"] if dlg_info["y"] is not None else 0,
+                dlg_info["width"] if dlg_info["width"] is not None else 0,
+                dlg_info["height"] if dlg_info["height"] is not None else 0
+            ],
             "properties": {},
             "controls": []
         }
@@ -311,19 +348,19 @@ def parse_dialog_block(lines, idx, name_to_id, id_to_name):
             idx += 1
             break
 
-        upper = line.upper()
+        upper = line.upper().strip()
 
         # Properties: STYLE, EXSTYLE, CAPTION, FONT, CLASS, MENU, LANGUAGE, etc.
         if upper.startswith("STYLE"):
-            dlg["properties"]["STYLE"] = line[len("STYLE"):].strip()
+            dlg["properties"]["STYLE"] = line.strip()[len("STYLE"):].strip()
             idx += 1
             continue
         elif upper.startswith("EXSTYLE"):
-            dlg["properties"]["EXSTYLE"] = line[len("EXSTYLE"):].strip()
+            dlg["properties"]["EXSTYLE"] = line.strip()[len("EXSTYLE"):].strip()
             idx += 1
             continue
         elif upper.startswith("CAPTION"):
-            text, _ = parse_quoted_string(line[len("CAPTION"):].strip())
+            text, _ = parse_quoted_string(line.strip()[len("CAPTION"):].strip())
             dlg["properties"]["CAPTION"] = text
             idx += 1
             continue
@@ -365,6 +402,34 @@ def parse_dialog_block(lines, idx, name_to_id, id_to_name):
             dlg["properties"]["LANGUAGE"] = line[len("LANGUAGE"):].strip()
             idx += 1
             continue
+        elif upper.startswith("LEFTMARGIN"):
+            rest = line[len("LEFTMARGIN"):].strip().lstrip(',').strip()
+            if "rect" not in dlg or not dlg["rect"]:
+                dlg["rect"] = [None, None, None, None]
+            dlg["rect"][0] = safe_int(rest, name_to_id)
+            idx += 1
+            continue
+        elif upper.startswith("TOPMARGIN"):
+            rest = line[len("TOPMARGIN"):].strip().lstrip(',').strip()
+            if "rect" not in dlg or not dlg["rect"]:
+                dlg["rect"] = [None, None, None, None]
+            dlg["rect"][1] = safe_int(rest, name_to_id)
+            idx += 1
+            continue
+        elif upper.startswith("RIGHTMARGIN"):
+            rest = line[len("RIGHTMARGIN"):].strip().lstrip(',').strip()
+            if "rect" not in dlg or not dlg["rect"]:
+                dlg["rect"] = [None, None, None, None]
+            dlg["rect"][2] = safe_int(rest, name_to_id)
+            idx += 1
+            continue
+        elif upper.startswith("BOTTOMMARGIN"):
+            rest = line[len("BOTTOMMARGIN"):].strip().lstrip(',').strip()
+            if "rect" not in dlg or not dlg["rect"]:
+                dlg["rect"] = [None, None, None, None]
+            dlg["rect"][3] = safe_int(rest, name_to_id)
+            idx += 1
+            continue
 
         # Controls: handle multi-line CONTROL / PUSHBUTTON / etc.
         keyword = line.split()[0]
@@ -378,8 +443,8 @@ def parse_dialog_block(lines, idx, name_to_id, id_to_name):
                 if not next_line:
                     j += 1
                     continue
-                # Only continue if the current logical line ends with a comma
-                if logical.rstrip().endswith(','):
+                # RERUN: Join lines if the current ends with a separator OR if the next starts with a pipe
+                if logical.rstrip().endswith(',') or logical.rstrip().endswith('|') or next_line.startswith('|'):
                     logical += " " + next_line
                     j += 1
                     continue
@@ -407,6 +472,7 @@ def parse_control_line(line: str, name_to_id, id_to_name):
     We keep any extra trailing tokens as raw.
     """
     original = line
+
     keyword, rest = parse_identifier(line)
     ctrl = {
         "raw": original,
@@ -452,14 +518,26 @@ def parse_control_line(line: str, name_to_id, id_to_name):
         ctrl["class"] = cls
         # style
         ctrl["style"] = parts[3].strip()
-        # rect
-        if len(parts) >= 8:
-            try:
-                x = int(parts[4]); y = int(parts[5])
-                w = int(parts[6]); h = int(parts[7])
-                ctrl["rect"] = [x, y, w, h]
-            except ValueError:
-                ctrl["rect"] = [parts[4], parts[5], parts[6], parts[7]]
+        
+        # RERUN: Robust rect detection for CONTROL. Coordinates are 4 integers.
+        # They might be merged into the style part or separated by commas.
+        all_sub_parts = []
+        for p in parts[3:]:
+            sub = re.split(r'[\s\|]+', p)
+            all_sub_parts.extend([s.strip() for s in sub if s.strip()])
+        
+        numeric_indices = []
+        for i, p in enumerate(all_sub_parts):
+            if p and (p[0].isdigit() or p[0] in ('-', '(')):
+                numeric_indices.append(i)
+
+        if len(numeric_indices) >= 4:
+            idx = numeric_indices[0] # Use the first sequence of numbers found
+            x = safe_int(all_sub_parts[idx], name_to_id)
+            y = safe_int(all_sub_parts[idx+1], name_to_id)
+            w = safe_int(all_sub_parts[idx+2], name_to_id)
+            h = safe_int(all_sub_parts[idx+3], name_to_id)
+            ctrl["rect"] = [x, y, w, h]
         # exstyle
         if len(parts) >= 9:
             ctrl["exstyle"] = parts[8].strip()
@@ -517,12 +595,12 @@ def parse_control_line(line: str, name_to_id, id_to_name):
 
         # rect
         if idx + 3 < len(parts):
-            try:
-                x = int(parts[idx]); y = int(parts[idx+1])
-                w = int(parts[idx+2]); h = int(parts[idx+3])
-                ctrl["rect"] = [x, y, w, h]
-            except ValueError:
-                ctrl["rect"] = [parts[idx], parts[idx+1], parts[idx+2], parts[idx+3]]
+            # RERUN: Use safe_int to evaluate expressions/constants in coordinates
+            x = safe_int(parts[idx], name_to_id)
+            y = safe_int(parts[idx+1], name_to_id)
+            w = safe_int(parts[idx+2], name_to_id)
+            h = safe_int(parts[idx+3], name_to_id)
+            ctrl["rect"] = [x, y, w, h]
             idx += 4
 
         # style
@@ -688,8 +766,9 @@ def join_logical_lines(lines):
     return out
 
 def decode_dlginitt_dispatch(ctrl_name, msg, data_len, flags, words, name_to_id, id_to_name):
-    # Rowan custom-control blocks start with 0x0021 or 0x0020
-    if len(words) >= 2 and words[0] in (0x0021, 0x0020) and words[1] == 0x0000:
+    # RERUN: Rowan controls (0x376) usually have packed metadata even without 0x21/20 signature
+    # Check for signature OR check if message is standard Rowan init (0x376)
+    if msg == "0x376" or (len(words) >= 2 and words[0] in (0x0021, 0x0020) and words[1] == 0x0000):
         return decode_full_dlginitt_entry(ctrl_name, msg, data_len, flags, words, name_to_id, id_to_name)
     else:
         return decode_simple_dlginitt_entry(ctrl_name, msg, data_len, flags, words, name_to_id, id_to_name)
@@ -854,15 +933,13 @@ def decode_full_dlginitt_entry(ctrl_name, msg, data_len, flags, words, name_to_i
     # 1. Create byte stream (Little Endian) to find string literals
     le_bytes = bytearray()
     for w in tail:
-        b0 = w & 0xFF
-        b1 = (w >> 8) & 0xFF
-        le_bytes.extend([b0, b1])
+        le_bytes.extend([w & 0xFF, (w >> 8) & 0xFF])
     
     le_blob = le_bytes.decode("latin-1", errors="ignore")
 
     # 2. Find identifier strings and their ranges in the blob
     #    We need raw strings for masking/replacing, and corrected strings for output.
-    raw_identifiers = set()
+    conf_identifiers = set()
     identifier_ranges = []
 
     # Helper to determine if a byte is a likely text character (printable ASCII, tab, newline)
@@ -872,7 +949,7 @@ def decode_full_dlginitt_entry(ctrl_name, msg, data_len, flags, words, name_to_i
 
     # Regex for identifiers. FIL_... are often icons. IDS_... are strings.
     for m in re.finditer(r'(FIL_|IDS_)[A-Z0-9_]+', le_blob):
-        raw_identifiers.add(m.group(0))
+        conf_identifiers.add(m.group(0))
         identifier_ranges.append((m.start(), m.end()))
 
     # 3. Identify numeric IDs to mask, BUT skip if they fall inside a string literal
@@ -887,27 +964,17 @@ def decode_full_dlginitt_entry(ctrl_name, msg, data_len, flags, words, name_to_i
         # Check if this word corresponds to a known ID
         name = id_to_name.get(w)
         if name and (name.startswith("IDS_") or name.startswith("FIL_")):
-            # RERUN FIX: If the word is composed entirely of valid text characters, 
-            # assume it is part of the string and NOT an ID to be masked.
-            # This fixes regressions like "Wind" -> "ind" (where "Wi" matched an ID).
-            b0 = le_bytes[i]
-            b1 = le_bytes[i+1]
-            
-            # Rule 1: If high byte is text, it's likely part of a string ("We", "\0W"). Skip.
-            if is_text_char(b1):
-                continue
-                
+            if is_text_char(le_bytes[i+1]):
+                continue         
             # Check for overlap with string literals
             byte_start = i
             byte_end = i + 2
-            
             overlap = False
             for r_start, r_end in identifier_ranges:
                 # Overlap if not (byte_end <= r_start or byte_start >= r_end)
                 if not (byte_end <= r_start or byte_start >= r_end):
                     overlap = True
                     break
-            
             if not overlap:
                 mask_indices.add(i)
                 mask_indices.add(i+1)
@@ -915,15 +982,12 @@ def decode_full_dlginitt_entry(ctrl_name, msg, data_len, flags, words, name_to_i
     # 4. Create cleaned byte stream for scavenging
     le_bytes_clean = bytearray()
     for i, b in enumerate(le_bytes):
-        if i in mask_indices:
-            le_bytes_clean.append(0)
-        else:
-            le_bytes_clean.append(b)
+        le_bytes_clean.append(0 if i in mask_indices else b)
 
     search_blob = le_bytes_clean.decode("latin-1", errors="ignore")
 
     # 5. Remove raw identifiers from search blob to clean it up for text scavenging
-    for ident in raw_identifiers:
+    for ident in conf_identifiers:
         search_blob = search_blob.replace(ident, ' ') # Replace with space to avoid merging words
 
     # 6. Scavenge other strings
@@ -935,25 +999,53 @@ def decode_full_dlginitt_entry(ctrl_name, msg, data_len, flags, words, name_to_i
         s = s.strip()
         if s and len(s) > 2 and re.search(r'[a-zA-Z]', s):
             other_strings.add(s)
-            
-    # 7. Build Output Identifiers (Correcting FIL_ to IF_L if needed)
-    output_identifiers = set()
-    for ident in raw_identifiers:
-        if ident.startswith("FIL_"):
-            output_identifiers.add("IF_L" + ident[4:])
-        else:
-            output_identifiers.add(ident)
+
+    # 7. Build High-Confidence Output Identifiers (found as actual strings in the binary block)
+    inferred_identifiers = set()
+    for w in tail:
+        if w == 0: continue
+        for val in (w, w >> 1):
+            if val < 32: continue 
+            name = id_to_name.get(val)
+            if name and (name.startswith("IDS_") or name.startswith("FIL_")):
+                if "TITLE" in name.upper() and name not in conf_identifiers:
+                    continue
+                if val > 100 or name in conf_identifiers:
+                    inferred_identifiers.add(name)
+
+    confident_output = set()
+    for ident in conf_identifiers:
+        if ident.startswith("FIL_"): confident_output.add("IF_L" + ident[4:])
+        else: confident_output.add(ident)
+
+    # 8. Smart Label Detection (Heuristic prioritization)
+    label_id = None
+    ctrl_base = ctrl_name.replace("IDC_", "").replace("CBO_", "").replace("BUT_", "")
+    for ident in sorted(list(conf_identifiers)):
+        if ident.startswith("IDS_") and ctrl_base in ident:
+            label_id = ident
+            break
+    
+    if not label_id:
+        for ident in sorted(list(conf_identifiers)):
+            if ident.startswith("IDS_") and "TITLE" not in ident.upper():
+                label_id = ident
+                break
+
+    if not label_id:
+        for ident in sorted(list(inferred_identifiers)):
+            if ctrl_base in ident:
+                label_id = ident
+                break
 
     numeric_ids = []
-    for w in reversed(words):
+    for w in tail:
         if w != 0:
-            # Check if this number corresponds to a found identifier
-            # We check if the ID maps to a name that is in our found identifiers (output format or raw)
             name = id_to_name.get(w)
-            if name and (name in raw_identifiers or (name in output_identifiers) or 
-                        (name.startswith("FIL_") and ("IF_L" + name[4:]) in output_identifiers)):
+            if not name: name = id_to_name.get(w >> 1)
+            if name and name in (conf_identifiers | inferred_identifiers):
                 numeric_ids.append(w)
-            break
+                break # Only record first significant ID
 
     strings = []
     if copyright_str:
@@ -968,8 +1060,10 @@ def decode_full_dlginitt_entry(ctrl_name, msg, data_len, flags, words, name_to_i
         "length": data_len,
         "extra": flags,
         "strings": strings,
-        "identifiers": sorted(list(output_identifiers)),
-        "numeric_ids": numeric_ids
+        "identifiers": sorted(list(confident_output)),
+        "numeric_ids": numeric_ids,
+        "label_id": label_id,
+        "inferred_ids": sorted(list(inferred_identifiers)) # RERUN: Keep inferred IDs separate to avoid noise
     }
 
     # --- NEW: Try to parse as a Rowan custom button ---
@@ -988,27 +1082,17 @@ def decode_full_dlginitt_entry(ctrl_name, msg, data_len, flags, words, name_to_i
 
     # Automatically detect icon and label from identifiers
     icon_name = None
-    label_id = None
     icon_prefix = "IF_LICON_"
-    label_prefix = "IDS_"
 
     for ident in result["identifiers"]:
         if ident.startswith(icon_prefix):
             # Extract the part between "IF_LICON_" and "_ON" or "_OFF"
             base_name = ident[len(icon_prefix):]
-            if base_name.endswith("_ON"):
-                icon_name = base_name[:-3]
-            elif base_name.endswith("_OFF"):
-                icon_name = base_name[:-4]
-            else:
-                icon_name = base_name  # Fallback
-        elif ident.startswith(label_prefix):
-            label_id = ident
+            if base_name.endswith("_ON"): icon_name = base_name[:-3]
+            elif base_name.endswith("_OFF"): icon_name = base_name[:-4]
+            else: icon_name = base_name 
 
-    if icon_name:
-        result["icon"] = icon_name
-    if label_id:
-        result["label_id"] = label_id
+    result["icon"] = icon_name
 
     # If no identifiers or other strings were found, it's likely a config block.
     # Add the raw words from the tail for inspection.
@@ -1149,6 +1233,7 @@ def parse_rc(path, name_to_id, id_to_name):
     define_re = re.compile(r'#define\s+(\w+)\s+(.+)')
 
     lines = raw_lines   # <‑‑ ADD THIS LINE
+    in_design_info = False
 
     idx = 0
     while idx < len(lines):
@@ -1176,6 +1261,23 @@ def parse_rc(path, name_to_id, id_to_name):
 
         upper = line.upper()
 
+        # RERUN: Robustly skip GUIDELINES/DESIGNINFO blocks to avoid duplicate dummy dialog entries.
+        # These blocks often start with 'dialogID DESIGNINFO' or 'GUIDELINES DESIGNINFO'.
+        if "DESIGNINFO" in upper:
+            idx += 1
+            depth = 0
+            while idx < len(lines):
+                l = strip_line_comments(lines[idx]).strip().upper()
+                if l.startswith("BEGIN"):
+                    depth += 1
+                elif l.startswith("END"):
+                    depth -= 1
+                    if depth <= 0:
+                        idx += 1
+                        break
+                idx += 1
+            continue
+
         # STRINGTABLE
         if upper.startswith("STRINGTABLE"):
             block, idx = parse_stringtable_block(lines, idx, name_to_id, id_to_name)
@@ -1183,7 +1285,7 @@ def parse_rc(path, name_to_id, id_to_name):
             continue
 
         # DIALOG / DIALOGEX
-        if " DIALOG " in upper or " DIALOGEX " in upper or upper.endswith(" DIALOG") or upper.endswith(" DIALOGEX"):
+        if not in_design_info and (" DIALOG " in upper or " DIALOGEX " in upper or upper.endswith(" DIALOG") or upper.endswith(" DIALOGEX")):
             dlg, idx = parse_dialog_block(lines, idx, name_to_id, id_to_name)
             result["dialogs"].append(dlg)
             continue

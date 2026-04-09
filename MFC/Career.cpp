@@ -268,6 +268,7 @@ void CCareer::OnOK()
 		if (buffer.GetLength() <= (PLAYERNAMELEN - 1))
 			strcpy(&MMC.PlayerName[0],buffer);
 	}
+	RDialog::OnOK();
 
 }
 void CCareer::OnDestroy() 

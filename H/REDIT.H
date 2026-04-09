@@ -21,6 +21,7 @@ protected:
 	OLE_COLOR m_foreColor;
 	long m_fontNum;
 	BOOL m_bEnabled;
+	int m_limit;
 public:
 	CREdit();
 	CLSID const& GetClsid()
@@ -53,13 +54,21 @@ public:
 	void SetFontNum(long);
 	BOOL GetEnabled();
 	void SetEnabled(BOOL);
+	void SetLimitText(int);
+	virtual void SetWindowText(LPCTSTR lpszString) override;
+	virtual void GetWindowText(LPTSTR lpszString, int nMax) const override;
+	virtual void GetWindowText(CString& rString) const override;
 
 // Operations
 public:
 	void SetFocus();
 
 protected:
+	virtual void PreSubclassWindow() override;
+
 	afx_msg void OnPaint();
+	afx_msg void OnChar(UINT nChar, UINT nRepCnt, UINT nFlags);
+	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
 	DECLARE_MESSAGE_MAP()
 };
 

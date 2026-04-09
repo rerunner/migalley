@@ -251,15 +251,23 @@ long CRCombo::GetIndex()
 
 void CRCombo::Clear()
 {
-	InvokeHelper(0xb, DISPATCH_METHOD, VT_EMPTY, NULL, NULL);
+    m_items.clear();
+    m_curSel = -1;
+    SetWindowText("");
+    Invalidate();
 }
 
 void CRCombo::DeleteString(long index)
 {
-	static BYTE parms[] =
-		VTS_I4;
-	InvokeHelper(0xc, DISPATCH_METHOD, VT_EMPTY, NULL, parms,
-		 index);
+    if (index >= 0 && index < (int)m_items.size())
+    {
+        m_items.erase(m_items.begin() + index);
+        if (m_curSel == index)
+            m_curSel = -1;
+        else if (m_curSel > index)
+            m_curSel--;
+        Invalidate();
+    }
 }
 
 int CRCombo::GetCurSel() const 
@@ -275,15 +283,6 @@ int CRCombo::SetCurSel(int index) {
 				SetWindowText(m_items[m_curSel].c_str());
 			} else {
 				SetWindowText("");
-			}
-			// Invalidate() is called by SetWindowText
-
-			if (GetParent()) {
-				// RERUN: Fire a generic TextChanged event (ID 1) with the new text.
-				// The parent's event sink map will route this to the correct handler.
-				FireEvent(1, m_items[m_curSel].c_str());
-				// RERUN: Also send the standard WM_COMMAND notification for compatibility with other handlers.
-				GetParent()->SendMessage(WM_COMMAND, MAKEWPARAM(GetDlgCtrlID(), CBN_SELCHANGE), (LPARAM)m_hWnd);
 			}
 		} else {
 			// Even if index is the same, we might need to repaint if the dropdown was just closed.
@@ -301,37 +300,34 @@ void CRCombo::ResetContent() {
     Invalidate();
 }
 
-void CRCombo::OnPaint() {
+void CRCombo::OnPaint()
+{
     CPaintDC dc(this);
     CRect rect;
     GetClientRect(rect);
 
-    // Draw the dropdown box (crude)
-    dc.FillSolidRect(rect, RGB(255, 255, 255)); // White background
-    dc.Draw3dRect(rect, RGB(128, 128, 128), RGB(0, 0, 0)); // Gray border
-    
-	// Draw dropdown arrow button
-	CRect arrowRect(rect.right - 18, rect.top + 2, rect.right - 2, rect.bottom - 2);
-	dc.FillSolidRect(arrowRect, RGB(192, 192, 192));
-	dc.Draw3dRect(arrowRect, RGB(255,255,255), RGB(128,128,128));
-	// Draw a triangle
-	CPoint center = arrowRect.CenterPoint();
-	dc.MoveTo(center.x - 3, center.y - 1);
-	dc.LineTo(center.x + 3, center.y - 1);
-	dc.LineTo(center.x, center.y + 2);
-	dc.LineTo(center.x - 3, center.y - 1);
+    // Simple "Rowan Combo" look: Yellow text on dark background, or standard gray
+    //dc.FillSolidRect(rect, RGB(64, 64, 64));
+    dc.Draw3dRect(rect, RGB(255, 255, 255), RGB(0, 0, 0));
 
-	// Display the currently selected item
-	CString text;
-	GetWindowText(text);
-	if (text.IsEmpty() && m_curSel >= 0 && m_curSel < (int)m_items.size()) {
+    CString text;
+    GetWindowText(text);
+    if (text.IsEmpty() && m_curSel >= 0 && m_curSel < (int)m_items.size()) {
 		text = m_items[m_curSel].c_str();
 	}
 
-	dc.SetBkMode(TRANSPARENT);
-	// Adjust text rect to not overlap arrow
-	CRect textRect(rect.left + 2, rect.top + 2, rect.right - 20, rect.bottom - 2);
-	dc.DrawText(text, textRect, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+    CFont* pFont = (CFont*)GetParent()->SendMessage(WM_GETGLOBALFONT, GetFontNum());
+    if (pFont) dc.SelectObject(pFont);
+
+    dc.SetTextColor(RGB(255, 255, 0)); // Yellow text
+    dc.SetBkMode(TRANSPARENT);
+    
+    CRect textRect(rect.left + 2, rect.top + 2, rect.right - 20, rect.bottom - 2);
+    dc.DrawText(text, textRect, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+
+    // Draw a small arrow on the right
+    dc.FillSolidRect(rect.right - 16, rect.top + 2, 14, rect.Height() - 4, RGB(128, 128, 128));
+    dc.Draw3dRect(rect.right - 16, rect.top + 2, 14, rect.Height() - 4, RGB(255, 255, 255), RGB(0, 0, 0));
 }
 
 void CRCombo::OnLButtonDown(UINT nFlags, CPoint point) {

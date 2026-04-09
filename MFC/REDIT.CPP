@@ -82,6 +82,8 @@ IMPLEMENT_DYNCREATE(CREdit, CWnd)
 
 BEGIN_MESSAGE_MAP(CREdit, CWnd)
 	ON_WM_PAINT()
+	ON_WM_CHAR()
+	ON_WM_LBUTTONDOWN()
 END_MESSAGE_MAP()
 
 CREdit::CREdit()
@@ -89,10 +91,16 @@ CREdit::CREdit()
 	m_foreColor = 0;
 	m_fontNum = 0;
 	m_bEnabled = TRUE;
+	m_limit = 0;
 }
 
 /////////////////////////////////////////////////////////////////////////////
 // CREdit properties
+
+void CREdit::PreSubclassWindow()
+{
+	m_caption = m_windowText.c_str();
+}
 
 OLE_COLOR CREdit::GetForeColor()
 {
@@ -112,8 +120,27 @@ CString CREdit::GetCaption()
 
 void CREdit::SetCaption(LPCTSTR propVal)
 {
-	m_caption = propVal;
-	if (m_hWnd) Invalidate();
+	SetWindowText(propVal);
+}
+
+void CREdit::SetWindowText(LPCTSTR lpszString)
+{
+	m_caption = lpszString;
+	CWnd::SetWindowText(lpszString);
+}
+
+void CREdit::GetWindowText(LPTSTR lpszString, int nMax) const
+{
+	if (nMax > 0 && lpszString)
+	{
+		strncpy(lpszString, (LPCTSTR)m_caption, nMax - 1);
+		lpszString[nMax - 1] = '\0';
+	}
+}
+
+void CREdit::GetWindowText(CString& rString) const
+{
+	rString = m_caption;
 }
 
 long CREdit::GetFontNum()
@@ -138,12 +165,59 @@ void CREdit::SetEnabled(BOOL propVal)
 	if (m_hWnd) Invalidate();
 }
 
+void CREdit::SetLimitText(int propVal)
+{
+	m_limit = propVal;
+}
+
 /////////////////////////////////////////////////////////////////////////////
 // CREdit operations
 
 void CREdit::SetFocus()
 {
+	CWnd::SetFocus();
 	std::cout << "CREdit::SetFocus called for " << (LPCTSTR)m_caption << std::endl;
+}
+
+void CREdit::OnLButtonDown(UINT nFlags, CPoint point)
+{
+	SetFocus();
+}
+
+void CREdit::OnChar(UINT nChar, UINT nRepCnt, UINT nFlags)
+{
+	if (!m_bEnabled)
+		return;
+
+	if (nChar == 0x08) // Backspace
+	{
+		if (m_caption.GetLength() > 0)
+		{
+			m_caption = m_caption.Left(m_caption.GetLength() - 1);
+		}
+	}
+	else if (nChar == 0x0D) // Enter / Return
+	{
+		if (GetParent())
+			GetParent()->SendMessage(WM_COMMAND, IDOK);
+		return;
+	}
+	else if (nChar >= 32) // Printable characters
+	{
+		if (m_limit <= 0 || m_caption.GetLength() < m_limit)
+		{
+			m_caption += (char)nChar;
+		}
+	}
+
+	CWnd::SetWindowText((LPCTSTR)m_caption);
+
+	Invalidate();
+
+	if (GetParent())
+	{
+		GetParent()->SendMessage(WM_COMMAND, MAKEWPARAM(GetDlgCtrlID(), EN_UPDATE), (LPARAM)m_hWnd);
+	}
 }
 
 void CREdit::OnPaint()
@@ -179,6 +253,17 @@ void CREdit::OnPaint()
 	// Draw the text with a small margin
 	rect.DeflateRect(2, 2);
 	dc.DrawText(m_caption, rect, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+
+	// Draw text cursor if focused
+	if (CWnd::GetFocus() == this)
+	{
+		CSize sz = dc.GetTextExtent(m_caption);
+		int cursorX = rect.left + sz.cx;
+		if (cursorX < rect.right)
+		{
+			dc.FillSolidRect(cursorX, rect.top, 1, rect.Height(), RGB(0, 0, 0));
+		}
+	}
 
 	// Restore old font
 	if (pOldFont)
